@@ -6,8 +6,8 @@
 @Time   :   2026/2/21 17:31
 @File   :   app_handler.py
 """
-import uuid
 from dataclasses import dataclass
+from uuid import UUID
 
 from injector import inject
 from langchain_core.output_parsers import StrOutputParser
@@ -31,22 +31,22 @@ class AppHandler:
         app = self.appService.create_app()
         return success_message(f"应用创建成功，id={app.id}")
 
-    def get_app(self, id: uuid.UUID):
+    def get_app(self, id: UUID):
         """查询应用"""
         app = self.appService.get_app(id)
         return success_message(f"应用获取成功，name={app.name}")
 
-    def update_app(self, id: uuid.UUID):
+    def update_app(self, id: UUID):
         """更新应用"""
         app = self.appService.update_app(id)
         return success_message(f"应用更新成功，name={app.name}")
 
-    def delete_app(self, id: uuid.UUID):
+    def delete_app(self, id: UUID):
         """删除应用"""
         app = self.appService.delete_app(id)
         return success_message(f"应用删除成功，id={app.id}")
 
-    def completion(self):
+    def debug(self, app_id: UUID):
         """聊天接口"""
 
         # 1. 从POST请求中获取输入并校验
