@@ -56,7 +56,8 @@ class AppHandler:
 
         # 2. 构建PromptTemplate, ChatModel, OutputParser组件
         prompt = ChatPromptTemplate.from_template("{query}")
-        llm = ChatOpenAI(model="kimi-k2-0905-preview")
+        # llm = ChatOpenAI(model="kimi-k2-0905-preview")
+        llm = ChatOpenAI(model="gemini-3.1-flash-lite-preview")
         parser = StrOutputParser()
 
         # 3. 构建链
