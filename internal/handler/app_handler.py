@@ -10,8 +10,11 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from injector import inject
+from langchain_classic.memory import ConversationBufferWindowMemory
+from langchain_community.chat_message_histories import FileChatMessageHistory
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_openai import ChatOpenAI
 
 from internal.exception import NotFoundException
@@ -49,22 +52,40 @@ class AppHandler:
     def debug(self, app_id: UUID):
         """聊天接口"""
 
-        # 1. 从POST请求中获取输入并校验
+        # 从POST请求中获取输入并校验
         req = CompletionReq()
         if not req.validate():
             return validate_error_json(req.errors)
 
-        # 2. 构建PromptTemplate, ChatModel, OutputParser组件
-        prompt = ChatPromptTemplate.from_template("{query}")
-        # llm = ChatOpenAI(model="kimi-k2-0905-preview")
-        llm = ChatOpenAI(model="gemini-3.1-flash-lite-preview")
-        parser = StrOutputParser()
+        # 创建Prompt
+        prompt = ChatPromptTemplate([
+            ("system", "你是一个强大的聊天机器人，能根据用户的提问进行相应的回复"),
+            MessagesPlaceholder("history"),
+            ("human", "{query}")
+        ])
 
-        # 3. 构建链
-        chain = prompt | llm | parser
+        # 创建Memory
+        memory = ConversationBufferWindowMemory(
+            k=3,
+            input_key="query",
+            output_key="output",
+            return_messages=True,
+            chat_memory=FileChatMessageHistory("./storage/memory/chat_history.txt")
+        )
 
-        # 4. 调用链
-        content = chain.invoke({"query": req.query.data})
+        # 创建LLM
+        llm = ChatOpenAI()
+
+        # 创建Chain
+        chain = RunnablePassthrough.assign(
+            history=RunnableLambda(lambda x: memory.load_memory_variables({}).get("history"))
+        ) | prompt | llm | StrOutputParser()
+
+        # 调用链
+        chain_input = {"query": req.query.data}
+        content = chain.invoke(chain_input)
+
+        memory.save_context(chain_input, {"output": content})
 
         return success_json({"content": content})
 
