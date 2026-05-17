@@ -19,7 +19,7 @@ langchain_text_splitters==1.1.2
 langchain_weaviate==0.0.6
 numpy==1.26.4
 openai==2.37.0
-pydantic==2.13.3
+pydantic==2.13.4
 pytest==9.0.3
 python-dotenv==1.2.2
 Requests==2.34.2
