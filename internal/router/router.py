@@ -11,13 +11,14 @@ from dataclasses import dataclass
 from flask import Flask, Blueprint
 from injector import inject
 
-from internal.handler import AppHandler
+from internal.handler import AppHandler, BuiltinToolHandler
 
 
 @inject
 @dataclass
 class Router:
     app_handler: AppHandler
+    builtin_tool_handler: BuiltinToolHandler
 
     def register_router(self, app: Flask):
         """注册路由"""
@@ -33,5 +34,10 @@ class Router:
         blue_print.add_url_rule("/app/<uuid:id>", methods=["POST"], view_func=self.app_handler.update_app)
         blue_print.add_url_rule("/app/<uuid:id>", methods=["DELETE"], view_func=self.app_handler.delete_app)
 
-        # 3. 在应用上注册蓝图
+        # 3. 内置插件广场模块
+        blue_print.add_url_rule("/builtin-tools", view_func=self.builtin_tool_handler.get_builtin_tools)
+        blue_print.add_url_rule("/builtin-tools/<string:provider_name>/tools/<string:tool_name>",
+                                view_func=self.builtin_tool_handler.get_provider_tool)
+
+        # 4. 在应用上注册蓝图
         app.register_blueprint(blue_print)

@@ -1,0 +1,14 @@
+name: google_serper
+label: 谷歌Serper搜索
+description: 一个低成本的谷歌搜索API
+params: [ ]
+#  - name: image_size
+#    label: 图像大小
+#    type: select
+#    required: true
+#    default: 1024*1024
+#    options:
+#      - value: 1024x1024
+#        label: "方(1024x1024)"
+#      - value: 512x512
+#        label: "方(512x512)"

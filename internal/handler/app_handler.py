@@ -99,7 +99,7 @@ class AppHandler:
         return success_json({"content": content})
 
     def ping(self):
-        return {"ping": "pong"}
+        return success_json("pong")
 
     @classmethod
     def _load_memory_variables(cls, input: Dict[str, Any], config: RunnableConfig) -> Dict[str, Any]:

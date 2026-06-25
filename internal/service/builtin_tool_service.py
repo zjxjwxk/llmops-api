@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+内置工具服务
+
+@Author :   Xinkang Wu
+@Time   :   2026/6/23 21:58
+@File   :   builtin_tool_service.py
+"""
+from dataclasses import dataclass
+
+from injector import inject
+from pydantic import BaseModel
+
+from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
+from internal.exception import NotFoundException
+
+
+@inject
+@dataclass
+class BuiltinToolService:
+    """内置工具服务"""
+
+    builtin_provider_manager: BuiltinProviderManager
+
+    def get_builtin_tools(self) -> list:
+        """获取所有内置服务提供商及其工具信息"""
+
+        # 获取所有内置服务提供商
+        providers = self.builtin_provider_manager.get_providers()
+
+        builtin_tools = []
+        # 遍历所有服务提供商
+        for provider in providers:
+            # 获取服务提供商实体
+            provider_entity = provider.provider_entity
+            builtin_tool = {
+                **provider_entity.model_dump(exclude={"icon"}),  # 排除icon属性，前端直接根据服务提供商名称获取
+                "tools": [],
+            }
+
+            # 遍历该服务提供商的所有工具实体
+            for tool_entity in provider.get_tool_entities():
+                # 获取工具函数
+                tool = provider.get_tool(tool_entity.name)
+                tool_dict = {
+                    **tool_entity.model_dump(),
+                    # 获取工具的大模型输入参数
+                    "inputs": self.get_tool_inputs(tool)
+                }
+                builtin_tool["tools"].append(tool_dict)
+            builtin_tools.append(builtin_tool)
+
+        return builtin_tools
+
+    def get_provider_tool(self, provider_name: str, tool_name: str) -> dict:
+        """根据服务提供商名称和工具名称，获取工具信息"""
+
+        # 获取服务提供商
+        provider = self.builtin_provider_manager.get_provider(provider_name)
+        if provider is None:
+            raise NotFoundException(f"该服务提供商{provider_name}不存在")
+
+        # 获取该服务提供商的对应工具实体
+        tool_entity = provider.get_tool_entity(tool_name)
+        if tool_entity is None:
+            raise NotFoundException(f"该工具{tool_name}不存在")
+
+        provider_entity = provider.provider_entity
+        tool = provider.get_tool(tool_name)
+
+        builtin_tool = {
+            "provider": {**provider_entity.model_dump(exclude={"icon", "created_at"})},
+            **tool_entity.model_dump(),
+            "created_at": provider_entity.created_at,
+            "inputs": self.get_tool_inputs(tool)
+        }
+
+        return builtin_tool
+
+    @classmethod
+    def get_tool_inputs(cls, tool) -> list:
+        """获取工具的大模型输入参数"""
+        inputs = []
+        if hasattr(tool, "args_schema") and issubclass(tool.args_schema, BaseModel):
+            # 遍历该工具函数的Pydantic Field参数
+            for field_name, field_info in tool.args_schema.model_json_schema()["properties"].items():
+                input = {
+                    "name": field_name,
+                    "description": field_info.get("description", ""),
+                    "required": field_info.get("required", True),
+                    "type": field_info["type"],
+                }
+                inputs.append(input)
+        return inputs
