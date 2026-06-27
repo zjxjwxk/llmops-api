@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-服务提供商工厂类
+内置服务提供商管理类
 
 @Author :   Xinkang Wu
 @Time   :   2026/6/21 15:13
@@ -13,20 +13,22 @@ from typing import Any
 
 import yaml
 from injector import singleton, inject
+from pydantic import BaseModel, Field
 
 from internal.core.tools.builtin_tools.entities import ProviderEntity, Provider
 
 
 @inject
 @singleton
-class BuiltinProviderManager:
+class BuiltinProviderManager(BaseModel):
     """内置服务提供商管理类"""
 
     # 服务提供商Map
-    provider_map: dict[str, Provider] = {}
+    provider_map: dict[str, Provider] = Field(default_factory=dict)
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         """构造函数，初始化服务提供商Map"""
+        super().__init__(**kwargs)
         self._init_provider_map()
 
     def get_provider(self, provider_name: str) -> Provider:
@@ -51,7 +53,7 @@ class BuiltinProviderManager:
     def _init_provider_map(self):
         """初始化服务提供商Map"""
 
-        # 检查Map是否不为空
+        # 检查Map是否已初始化
         if self.provider_map:
             return
 

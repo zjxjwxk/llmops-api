@@ -14,9 +14,15 @@ from pkg.response import HttpCode
 class TestAppHandler:
     """AppHandler测试类"""
 
-    @pytest.mark.parametrize("query", [None, "你好，我叫李雷，1+1等于多少？"])
-    def test_completion(self, query, client):
-        response = client.post("/app/completion", json={"query": query})
+    @pytest.mark.parametrize(
+        "app_id, query",
+        [
+            ("23ca97c3-a6a2-4bb8-8b2b-4b2c8a4fd5f0", "你好，你是谁？"),
+            ("23ca97c3-a6a2-4bb8-8b2b-4b2c8a4fd5f0", None),
+        ]
+    )
+    def test_debug(self, app_id, query, client):
+        response = client.post(f"/apps/{app_id}/debug", json={"query": query})
         # 测试接口返回成功
         assert response.status_code == 200
 

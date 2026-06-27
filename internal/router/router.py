@@ -38,6 +38,9 @@ class Router:
         blue_print.add_url_rule("/builtin-tools", view_func=self.builtin_tool_handler.get_builtin_tools)
         blue_print.add_url_rule("/builtin-tools/<string:provider_name>/tools/<string:tool_name>",
                                 view_func=self.builtin_tool_handler.get_provider_tool)
+        blue_print.add_url_rule("/builtin-tools/<string:provider_name>/icon",
+                                view_func=self.builtin_tool_handler.get_provider_icon)
+        blue_print.add_url_rule("/builtin-tools/categories", view_func=self.builtin_tool_handler.get_categories)
 
         # 4. 在应用上注册蓝图
         app.register_blueprint(blue_print)
