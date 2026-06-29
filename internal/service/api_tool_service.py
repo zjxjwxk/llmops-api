@@ -15,12 +15,17 @@ from injector import inject
 
 from internal.core.tools.api_tools.entities import OpenAPISchema
 from internal.exception import ValidationException
+from internal.model import ApiToolProvider, ApiTool
+from internal.schema.api_tool_schema import CreateApiToolReq
+from pkg.sqlalchemy import SQLAlchemy
 
 
 @inject
 @dataclass
 class ApiToolService:
     """自定义API工具服务"""
+
+    db: SQLAlchemy
 
     @classmethod
     def parse_openapi_schema(cls, openapi_schema_str: str) -> OpenAPISchema:
@@ -34,3 +39,49 @@ class ApiToolService:
             raise ValidationException("OpenAPI Schema校验不通过")
 
         return OpenAPISchema(**data)
+
+    def create_api_tool(self, req: CreateApiToolReq) -> None:
+        """创建自定义API工具"""
+
+        # TODO: 实现授权认证模块后，完善账户相关逻辑
+        account_id = "05a9c691-a5b0-4661-893a-430c760eb8cd"
+
+        # 检验并提取openapi_schema
+        openapi_schema = self.parse_openapi_schema(req.openapi_schema.data)
+
+        # 判断该工具提供商名称是否已存在于当前账户
+        api_tool_provider = self.db.session.query(ApiToolProvider).filter_by(
+            account_id=account_id,
+            name=req.name.data,
+        ).one_or_none()
+
+        if api_tool_provider:
+            raise ValidationException(f"该工具提供商名称{req.name.data}已存在")
+
+        # 开启数据库自动提交
+        with self.db.auto_commit():
+            # 创建自定义API工具提供商
+            api_tool_provider = ApiToolProvider(
+                account_id=account_id,
+                name=req.name.data,
+                icon=req.icon.data,
+                description=openapi_schema.description,
+                openapi_schema=req.openapi_schema.data,
+                headers=req.headers.data,
+            )
+            self.db.session.add(api_tool_provider)
+            self.db.session.flush()
+
+            # 创建自定义API工具并关联其提供商
+            for path, path_item in openapi_schema.paths.items():
+                for method, method_item in path_item.items():
+                    api_tool = ApiTool(
+                        account_id=account_id,
+                        provider_id=api_tool_provider.id,
+                        name=method_item.get("operationId"),
+                        description=method_item.get("description"),
+                        url=f"{openapi_schema.server}{path}",
+                        method=method,
+                        parameters=method_item.get("parameters", []),
+                    )
+                    self.db.session.add(api_tool)
