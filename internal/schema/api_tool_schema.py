@@ -8,10 +8,13 @@
 @Time   :   2026/6/28 15:54
 @File   :   api_tool_schema.py
 """
+
 from flask_wtf import FlaskForm
+from marshmallow import Schema, fields, pre_dump
 from wtforms import StringField
 from wtforms.validators import DataRequired, Length, URL, ValidationError
 
+from internal.model import ApiToolProvider
 from internal.schema import ListField
 
 
@@ -47,3 +50,22 @@ class CreateApiToolReq(FlaskForm):
                 raise ValidationError("headers列表中的元素类型必须为字典")
             if set(header.keys()) != {"key", "value"}:
                 raise ValidationError("headers列表中的字典必须仅包含key/value两个属性")
+
+
+class GetApiToolProviderResp(Schema):
+    """获取自定义API提供商信息的响应"""
+
+    id = fields.UUID()
+    name = fields.String()
+    icon = fields.String()
+    openapi_schema = fields.String()
+    headers = fields.List(fields.Dict, default=[])
+    created_at = fields.Integer(default=0)
+
+    @pre_dump
+    def process_data(self, data: ApiToolProvider, **kwargs):
+        resp = {
+            **data.__dict__,
+            "created_at": int(data.created_at.timestamp())
+        }
+        return resp

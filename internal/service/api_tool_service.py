@@ -10,11 +10,12 @@
 """
 import json
 from dataclasses import dataclass
+from uuid import UUID
 
 from injector import inject
 
 from internal.core.tools.api_tools.entities import OpenAPISchema
-from internal.exception import ValidationException
+from internal.exception import ValidationException, NotFoundException
 from internal.model import ApiToolProvider, ApiTool
 from internal.schema.api_tool_schema import CreateApiToolReq
 from pkg.sqlalchemy import SQLAlchemy
@@ -85,3 +86,18 @@ class ApiToolService:
                         parameters=method_item.get("parameters", []),
                     )
                     self.db.session.add(api_tool)
+
+    def get_api_tool_provider(self, provider_id: UUID):
+        """获取自定义API提供商信息"""
+
+        # TODO: 实现授权认证模块后，完善账户相关逻辑
+        account_id = "05a9c691-a5b0-4661-893a-430c760eb8cd"
+
+        # 查询该工具的提供商
+        api_tool_provider = self.db.session.query(ApiToolProvider).get(provider_id)
+
+        # 检查是否为空且是否属于当前账户
+        if api_tool_provider is None or str(api_tool_provider.account_id) != account_id:
+            raise NotFoundException("该自定义API工具提供商不存在")
+
+        return api_tool_provider
