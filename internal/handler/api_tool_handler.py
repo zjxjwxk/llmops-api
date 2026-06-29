@@ -39,6 +39,13 @@ class ApiToolHandler:
 
         return success_message("创建自定义API插件成功")
 
+    def delete_api_tool_provider(self, provider_id: UUID):
+        """删除自定义API工具提供商"""
+
+        self.api_tool_service.delete_api_tool_provider(provider_id)
+
+        return success_message("删除自定义API插件成功")
+
     def get_api_tool_provider(self, provider_id: UUID):
         """获取自定义API工具提供商的信息"""
 

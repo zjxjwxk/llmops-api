@@ -119,3 +119,27 @@ class ApiToolService:
             raise NotFoundException("该自定义API工具不存在")
 
         return api_tool
+
+    def delete_api_tool_provider(self, provider_id: UUID):
+        """删除自定义API工具提供商"""
+
+        # TODO: 实现授权认证模块后，完善账户相关逻辑
+        account_id = "05a9c691-a5b0-4661-893a-430c760eb8cd"
+
+        # 查询该工具提供商
+        api_tool_provider = self.db.session.query(ApiToolProvider).get(provider_id)
+
+        # 检查是否为空且是否属于当前账户
+        if api_tool_provider is None or str(api_tool_provider.account_id) != account_id:
+            raise NotFoundException("该自定义API工具提供商不存在")
+
+        # 开启数据库自动提交
+        with self.db.auto_commit():
+            # 删除该工具提供者的所有工具
+            self.db.session.query(ApiTool).filter(
+                ApiTool.provider_id == provider_id,
+                ApiTool.account_id == account_id,
+            ).delete()
+
+            # 删除该工具提供者
+            self.db.session.delete(api_tool_provider)
