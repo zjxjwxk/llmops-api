@@ -88,7 +88,7 @@ class ApiToolService:
                     self.db.session.add(api_tool)
 
     def get_api_tool_provider(self, provider_id: UUID):
-        """获取自定义API提供商信息"""
+        """获取自定义API工具提供商信息"""
 
         # TODO: 实现授权认证模块后，完善账户相关逻辑
         account_id = "05a9c691-a5b0-4661-893a-430c760eb8cd"
@@ -101,3 +101,21 @@ class ApiToolService:
             raise NotFoundException("该自定义API工具提供商不存在")
 
         return api_tool_provider
+
+    def get_api_tool(self, provider_id, tool_name):
+        """获取自定义API工具信息"""
+
+        # TODO: 实现授权认证模块后，完善账户相关逻辑
+        account_id = "05a9c691-a5b0-4661-893a-430c760eb8cd"
+
+        # 查询该工具
+        api_tool = self.db.session.query(ApiTool).filter_by(
+            provider_id=provider_id,
+            name=tool_name
+        ).one_or_none()
+
+        # 检查是否为空
+        if api_tool is None or str(api_tool.account_id) != account_id:
+            raise NotFoundException("该自定义API工具不存在")
+
+        return api_tool

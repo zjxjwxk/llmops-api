@@ -18,20 +18,29 @@ class TestApiToolHandler:
 
     valid_openapi_schema = """
 {
-	"server": "https://weather.example.com",
-	"description": "天气工具",
+	"server": "https://restapi.amap.com/v3",
+	"description": "高德地图API",
 	"paths": {
-		"/location": {
+		"/config/district": {
 			"get": {
-				"description": "获取特定位置的天气预报信息",
-				"operationId": "GetCurrentWeather",
-				"parameters": [{
-					"name": "location",
-					"in": "query",
-					"description": "需要获取天气预报的城市名",
-					"required": true,
-					"type": "str"
-				}]
+				"description": "获取行政区域编码",
+				"operationId": "GetDistrictCode",
+				"parameters": [
+					{
+						"name": "key",
+						"in": "query",
+						"description": "高德地图API Key",
+						"required": true,
+						"type": "str"
+					},
+					{
+						"name": "keywords",
+						"in": "query",
+						"description": "城市名称",
+						"required": true,
+						"type": "str"
+					}
+				]
 			}
 		}
 	}
