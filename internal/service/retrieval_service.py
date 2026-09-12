@@ -91,11 +91,14 @@ class RetrievalService(BaseService):
         else:
             langchain_documents = hybrid_retriever.invoke(query)[:k]
 
-        # 创建知识库查询记录
-        for langchain_document in langchain_documents:
+        # 创建知识库查询记录（每个知识库记录一条）
+        dataset_id_set = list(
+            set(str(langchain_document.metadata["dataset_id"]) for langchain_document in langchain_documents)
+        )
+        for dataset_id in dataset_id_set:
             self.create(
                 DatasetQuery,
-                dataset_id=langchain_document.metadata["dataset_id"],
+                dataset_id=dataset_id,
                 query=query,
                 source=retrieval_source,
                 # TODO: App配置模块完成后实现
