@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from flask import request
+from flask_login import login_required
 from injector import inject
 
 from internal.core.file_extractor import FileExtractor
@@ -58,6 +59,7 @@ class DatasetHandler:
 
         return success_json(resp.dump(dataset))
 
+    @login_required
     def get_dataset_with_page(self):
         """获取知识库分页"""
 

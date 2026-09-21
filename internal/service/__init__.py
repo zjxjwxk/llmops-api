@@ -6,6 +6,7 @@
 @Time   :   2026/2/20 15:58
 @File   :   __init__.py
 """
+from .account_service import AccountService
 from .api_tool_service import ApiToolService
 from .app_service import AppService
 from .base_service import BaseService
@@ -16,6 +17,7 @@ from .document_service import DocumentService
 from .embeddings_service import EmbeddingsService
 from .indexing_service import IndexingService
 from .jieba_service import JiebaService
+from .jwt_service import JwtService
 from .keyword_table_service import KeywordTableService
 from .oci_object_storage_service import OciObjectStorageService
 from .process_rule_service import ProcessRuleService
@@ -41,5 +43,7 @@ __all__ = [
     "KeywordTableService",
     "SegmentService",
     "RetrievalService",
-    "ConversationService"
+    "ConversationService",
+    "JwtService",
+    "AccountService"
 ]

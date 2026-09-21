@@ -10,11 +10,13 @@ import logging
 
 from flask import Flask
 from flask_cors import CORS
+from flask_login import LoginManager
 from flask_migrate import Migrate
 
 from config import Config
 from internal.exception import CustomException
 from internal.extension import logging_extension, redis_extension, celery_extension
+from internal.middleware import Middleware
 from internal.router import Router
 from pkg.response import json, Response, HttpCode
 from pkg.sqlalchemy import SQLAlchemy
@@ -29,6 +31,8 @@ class Http(Flask):
             db: SQLAlchemy,
             migrate: Migrate,
             config: Config,
+            login_manager: LoginManager,
+            middleware: Middleware,
             router: Router,
             **kwargs
     ):
@@ -47,6 +51,7 @@ class Http(Flask):
         redis_extension.init_app(self)
         celery_extension.init_app(self)
         logging_extension.init_app(self)
+        login_manager.init_app(self)
 
         # 5. 解决前后端跨域问题
         CORS(self, resources={
@@ -58,7 +63,10 @@ class Http(Flask):
             }
         })
 
-        # 6. 注册应用路由
+        # 6. 注册请求加载器
+        login_manager.request_loader(middleware.request_loader)
+
+        # 7. 注册应用路由
         router.register_router(self)
 
     def _error_handler(self, error: Exception):

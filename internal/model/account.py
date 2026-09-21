@@ -6,6 +6,7 @@
 @Time   :   2026/8/30 15:39
 @File   :   account.py
 """
+from flask_login import UserMixin
 from sqlalchemy import (
     Column,
     UUID,
@@ -18,7 +19,7 @@ from sqlalchemy import (
 from internal.extension.database_extension import db
 
 
-class Account(db.Model):
+class Account(UserMixin, db.Model):
     """账号模型"""
     __tablename__ = "account"
     __table_args__ = (
