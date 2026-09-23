@@ -6,6 +6,7 @@
 @Time   :   2026/2/20 15:57
 @File   :   __init__.py
 """
+from .account_handler import AccountHandler
 from .api_tool_handler import ApiToolHandler
 from .app_handler import AppHandler
 from .builtin_tool_handler import BuiltinToolHandler
@@ -18,4 +19,4 @@ from .upload_file_handler import UploadFileHandler
 __all__ = ["AppHandler",
            "BuiltinToolHandler", "ApiToolHandler",
            "UploadFileHandler", "DatasetHandler", "DocumentHandler", "SegmentHandler",
-           "OAuthHandler"]
+           "OAuthHandler", "AccountHandler"]

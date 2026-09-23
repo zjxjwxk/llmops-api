@@ -8,12 +8,15 @@
 @Time   :   2026/9/20 15:06
 @File   :   account_service.py
 """
+import base64
+import secrets
 from dataclasses import dataclass
 from uuid import UUID
 
 from injector import inject
 
 from internal.model import Account, AccountOAuth
+from pkg.password import hash_password
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
 
@@ -49,3 +52,26 @@ class AccountService(BaseService):
         """创建账号"""
 
         return self.create(Account, **kwargs)
+
+    def update_password(self, password: str, account: Account) -> Account:
+        """更新当前账号密码"""
+
+        # 生成密码随机盐值
+        salt = secrets.token_bytes(16)
+        base64_salt = base64.b64encode(salt).decode()
+
+        # 对密码+盐值进行加密
+        password_hashed = hash_password(password, salt)
+
+        # 对加密密码进行Base64编码
+        base64_password_hashed = base64.b64encode(password_hashed).decode()
+
+        # 更新账号密码和盐值
+        self.update_account(account, password=base64_password_hashed, password_salt=base64_salt)
+        return account
+
+    def update_account(self, account: Account, **kwargs):
+        """更新账号信息"""
+
+        self.update(account, **kwargs)
+        return account
