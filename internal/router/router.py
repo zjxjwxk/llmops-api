@@ -12,7 +12,7 @@ from flask import Flask, Blueprint
 from injector import inject
 
 from internal.handler import AppHandler, BuiltinToolHandler, ApiToolHandler, UploadFileHandler, DatasetHandler, \
-    DocumentHandler, SegmentHandler, OAuthHandler, AccountHandler
+    DocumentHandler, SegmentHandler, OAuthHandler, AccountHandler, AuthHandler
 
 
 @inject
@@ -27,6 +27,7 @@ class Router:
     segment_handler: SegmentHandler
     oauth_handler: OAuthHandler
     account_handler: AccountHandler
+    auth_handler: AuthHandler
 
     def register_router(self, app: Flask):
         """注册路由"""
@@ -112,10 +113,12 @@ class Router:
             "/datasets/<uuid:dataset_id>/documents/<uuid:document_id>/segments/<uuid:segment_id>/delete",
             methods=["POST"], view_func=self.segment_handler.delete_segment)
 
-        # OAuth模块
+        # 认证授权模块
         blue_print.add_url_rule("/oauth/<string:provider_name>", view_func=self.oauth_handler.provider)
         blue_print.add_url_rule("/oauth/authorize/<string:provider_name>", methods=["POST"],
                                 view_func=self.oauth_handler.authorize)
+        blue_print.add_url_rule("/auth/password-login", methods=["POST"], view_func=self.auth_handler.password_login)
+        blue_print.add_url_rule("/auth/logout", methods=["POST"], view_func=self.auth_handler.logout)
 
         # 账号模块
         blue_print.add_url_rule("/account", view_func=self.account_handler.get_current_user)

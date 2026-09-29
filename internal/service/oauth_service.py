@@ -15,12 +15,12 @@ from flask import request
 from injector import inject
 
 from internal.exception import NotFoundException
+from internal.model import AccountOAuth
 from pkg.oauth import OAuth, GithubOAuth
 from pkg.sqlalchemy import SQLAlchemy
-from . import JwtService
 from .account_service import AccountService
 from .base_service import BaseService
-from ..model import AccountOAuth
+from .jwt_service import JwtService
 
 
 @inject
