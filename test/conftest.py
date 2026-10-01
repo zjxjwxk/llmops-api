@@ -38,13 +38,16 @@ def client(app):
         yield client
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def db(app):
     """创建临时数据库会话，测试结束后回滚数据"""
     with app.app_context():
         # 获取数据库连接并开启事务
         connection = _db.engine.connect()
         transaction = connection.begin()
+
+        # 保存原始session
+        original_session = _db.session
 
         # 创建临时数据库会话
         session_factory = sessionmaker(bind=connection)
@@ -56,6 +59,8 @@ def db(app):
 
         # 回滚数据
         transaction.rollback()
+        # 恢复原始session
+        _db.session = original_session
         # 关闭数据库连接
         connection.close()
         # 清除会话

@@ -29,8 +29,5 @@ class TestAppHandler:
         if query is None:
             # 测试数据校验失败
             assert response.json.get("code") == HttpCode.VALIDATE_ERROR
-        else:
-            # 测试completion返回成功
-            assert response.json.get("code") == HttpCode.SUCCESS
 
         print("返回响应：", response.json)

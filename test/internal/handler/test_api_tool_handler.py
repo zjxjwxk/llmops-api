@@ -111,7 +111,7 @@ class TestApiToolHandler:
 
     @pytest.mark.parametrize("query", [
         {},
-        {"current_page": 2},
+        {"current_page": 5},
         {"search_word": "高德"},
         {"search_word": "百度"},
     ])
@@ -120,7 +120,7 @@ class TestApiToolHandler:
 
         resp = client.get("/api-tools", query_string=query)
         assert resp.status_code == 200
-        if query.get("current_page") == 2:
+        if query.get("current_page") == 5:
             assert len(resp.json.get("data").get("list")) == 0
         elif query.get("search_word") == "高德":
             assert len(resp.json.get("data").get("list")) == 1
@@ -162,7 +162,7 @@ class TestApiToolHandler:
         """测试删除自定义API工具提供商"""
 
         provider_id = "a712e526-f4dd-490f-be3e-256d581c201c"
-        resp = client.delete(f"/api-tools/{provider_id}")
+        resp = client.post(f"/api-tools/{provider_id}/delete")
         assert resp.status_code == 200
         assert resp.json.get("code") == HttpCode.SUCCESS
 
@@ -179,7 +179,7 @@ class TestApiToolHandler:
             "openapi_schema": self.valid_openapi_schema,
             "headers": [{"key": "Content-Type", "value": "application/json; charset=utf-8"}]
         }
-        resp = client.put(f"/api-tools/{provider_id}", json=data)
+        resp = client.post(f"/api-tools/{provider_id}", json=data)
         assert resp.status_code == 200
 
         api_tool_provider = db.session.query(ApiToolProvider).get(provider_id)
