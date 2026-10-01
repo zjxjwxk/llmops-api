@@ -18,7 +18,7 @@ from sqlalchemy import update
 
 from internal.entity.dataset_entity import RetrievalStrategy, RetrievalSource
 from internal.exception import NotFoundException
-from internal.model import Dataset, DatasetQuery, Segment
+from internal.model import Dataset, DatasetQuery, Segment, Account
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
 from .jieba_service import JiebaService
@@ -38,6 +38,7 @@ class RetrievalService(BaseService):
             self,
             dataset_ids: list[UUID],
             query: str,
+            account: Account,
             retrieval_strategy: str = RetrievalStrategy.SEMANTIC,
             k: int = 4,
             score: float = 0,
@@ -45,13 +46,10 @@ class RetrievalService(BaseService):
     ) -> list[LangChainDocument]:
         """知识库检索"""
 
-        # TODO: 实现授权认证模块后，完善账户相关逻辑
-        account_id = "05a9c691-a5b0-4661-893a-430c760eb8cd"
-
         # 获取知识库列表并校验权限
         datasets = self.db.session.query(Dataset).filter(
             Dataset.id.in_(dataset_ids),
-            Dataset.account_id == account_id
+            Dataset.account_id == account.id
         ).all()
 
         if datasets is None or len(datasets) == 0:
@@ -103,7 +101,7 @@ class RetrievalService(BaseService):
                 source=retrieval_source,
                 # TODO: App配置模块完成后实现
                 source_app_id=None,
-                created_by=account_id,
+                created_by=account.id,
             )
 
         # 批量更新片段命中次数

@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from injector import inject
 
-from internal.model import App
+from internal.model import App, Account
 from pkg.sqlalchemy import SQLAlchemy
 
 
@@ -21,10 +21,10 @@ class AppService:
     """应用服务逻辑"""
     db: SQLAlchemy
 
-    def create_app(self) -> App:
+    def create_app(self, account: Account) -> App:
         with self.db.auto_commit():
             # 1. 创建模型实体类
-            app = App(name="新建应用", account_id=uuid.uuid4(), icon="", description="这是一个测试应用", )
+            app = App(name="新建应用", account_id=account.id, icon="", description="这是一个测试应用", )
 
             # 2. 将实体类添加到session中
             self.db.session.add(app)

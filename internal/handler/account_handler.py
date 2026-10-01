@@ -21,7 +21,7 @@ from pkg.response import success_json, validate_error_json, success_message
 class AccountHandler:
     """账号处理器"""
 
-    accoount_service: AccountService
+    account_service: AccountService
 
     @login_required
     def get_current_user(self):
@@ -40,7 +40,7 @@ class AccountHandler:
             return validate_error_json(req.errors)
 
         # 调用服务更新密码
-        self.accoount_service.update_password(req.password.data, current_user)
+        self.account_service.update_password(req.password.data, current_user)
 
         return success_message("更新账号密码成功")
 
@@ -54,7 +54,7 @@ class AccountHandler:
             return validate_error_json(req.errors)
 
         # 调用服务更新账号名称
-        self.accoount_service.update_account(current_user, name=req.name.data)
+        self.account_service.update_account(current_user, name=req.name.data)
 
         return success_message("更新账号名称成功")
 
@@ -68,6 +68,6 @@ class AccountHandler:
             return validate_error_json(req.errors)
 
         # 调用服务更新账号头像
-        self.accoount_service.update_account(current_user, avatar=req.avatar.data)
+        self.account_service.update_account(current_user, avatar=req.avatar.data)
 
         return success_message("更新账号头像成功")

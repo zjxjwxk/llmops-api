@@ -13,6 +13,7 @@ from operator import itemgetter
 from typing import Dict, Any, Generator
 from uuid import UUID
 
+from flask_login import login_required, current_user
 from injector import inject
 from langchain_classic.base_memory import BaseMemory
 from langchain_classic.memory import ConversationBufferWindowMemory
@@ -48,26 +49,31 @@ class AppHandler:
     conversation_service: ConversationService
     redis_client: Redis
 
+    @login_required
     def create_app(self):
         """创建应用"""
-        app = self.appService.create_app()
+        app = self.appService.create_app(current_user)
         return success_message(f"应用创建成功，id={app.id}")
 
+    @login_required
     def get_app(self, id: UUID):
         """查询应用"""
         app = self.appService.get_app(id)
         return success_message(f"应用获取成功，name={app.name}")
 
+    @login_required
     def update_app(self, id: UUID):
         """更新应用"""
         app = self.appService.update_app(id)
         return success_message(f"应用更新成功，name={app.name}")
 
+    @login_required
     def delete_app(self, id: UUID):
         """删除应用"""
         app = self.appService.delete_app(id)
         return success_message(f"应用删除成功，id={app.id}")
 
+    @login_required
     def debug(self, app_id: UUID):
         """应用会话调试接口，流式事件输出"""
 

@@ -7,10 +7,19 @@
 @File   :   conftest.py
 """
 import pytest
+from unittest.mock import Mock, patch
 from sqlalchemy.orm import sessionmaker, scoped_session
 
-from app.http.app import app as _app
-from internal.extension.database_extension import db as _db
+# Mock the embeddings service before importing the app
+mock_embeddings = Mock()
+mock_store = Mock()
+mock_cache_backed_embeddings = Mock()
+
+with patch('internal.service.embeddings_service.HuggingFaceEmbeddings', return_value=mock_embeddings), \
+     patch('internal.service.embeddings_service.RedisStore', return_value=mock_store), \
+     patch('internal.service.embeddings_service.CacheBackedEmbeddings.from_bytes_store', return_value=mock_cache_backed_embeddings):
+    from app.http.app import app as _app
+    from internal.extension.database_extension import db as _db
 
 
 @pytest.fixture
@@ -24,6 +33,8 @@ def app():
 def client(app):
     """获取Flask测试客户端实例"""
     with app.test_client() as client:
+        access_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwNWE5YzY5MS1hNWIwLTQ2NjEtODkzYS00MzBjNzYwZWI4Y2QiLCJpc3MiOiJMTE1PcHMiLCJleHAiOjE3OTM0MjM4OTh9.WTzgCCewbsATvu8BYB-PwVJSSageMyIHhRRZ7Y003vU"
+        client.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {access_token}"
         yield client
 
 

@@ -21,7 +21,7 @@ from werkzeug.datastructures import FileStorage
 
 from internal.entity.upload_file_entity import ALLOWED_DOCUMENT_EXTENSION, ALLOWED_IMAGE_EXTENSION
 from internal.exception import FailException
-from internal.model import UploadFile
+from internal.model import UploadFile, Account
 from .upload_file_service import UploadFileService
 
 
@@ -32,11 +32,8 @@ class OciObjectStorageService:
 
     upload_file_service: UploadFileService
 
-    def upload_file(self, file: FileStorage, only_image: bool = False) -> UploadFile:
+    def upload_file(self, file: FileStorage, only_image: bool, account: Account) -> UploadFile:
         """上传文件至OCI对象存储，返回文件信息"""
-
-        # TODO: 实现授权认证模块后，完善账户相关逻辑
-        account_id = "05a9c691-a5b0-4661-893a-430c760eb8cd"
 
         # 提取文件扩展名并校验是否允许
         filename = file.filename
@@ -67,12 +64,12 @@ class OciObjectStorageService:
                 put_object_body=file_content,
                 content_type=file.mimetype
             )
-        except Exception as e:
+        except Exception:
             raise FailException("上传文件失败，请稍后重试")
 
         # 创建UploadFile记录
         return self.upload_file_service.create_upload_file(
-            account_id=account_id,
+            account_id=account.id,
             name=filename,
             key=upload_file_name,
             size=len(file_content),

@@ -81,7 +81,6 @@ class Router:
         blue_print.add_url_rule("/datasets/<uuid:dataset_id>/delete", methods=["POST"],
                                 view_func=self.dataset_handler.delete_dataset)
         blue_print.add_url_rule("/datasets/<uuid:dataset_id>/hit", methods=["POST"], view_func=self.dataset_handler.hit)
-        blue_print.add_url_rule("/datasets/embeddings", view_func=self.dataset_handler.embeddings_query)
 
         blue_print.add_url_rule("/datasets/<uuid:dataset_id>/documents", methods=["POST"],
                                 view_func=self.document_handler.create_documents)
