@@ -35,7 +35,7 @@ class UploadFileHandler:
             return validate_error_json(req.errors)
 
         # 上传文件至OCI对象存储服务并获取记录
-        upload_file = self.oci_object_storage_service.upload_file(req.file.dataFalse, False, current_user)
+        upload_file = self.oci_object_storage_service.upload_file(req.file.data, False, current_user)
 
         # 构建响应并返回
         resp = UploadFileResp()
