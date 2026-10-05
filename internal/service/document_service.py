@@ -111,7 +111,7 @@ class DocumentService(BaseService):
         if document is None:
             raise NotFoundException("该文档不存在，请检查后重试")
 
-        if document.dataset_id != dataset_id or str(document.account_id) != account.id:
+        if document.dataset_id != dataset_id or document.account_id != account.id:
             raise ForbiddenException("当前用户无权限查看该文档，请检查后重试")
 
         return document
