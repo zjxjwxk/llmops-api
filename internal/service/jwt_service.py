@@ -15,6 +15,8 @@ from typing import Any
 import jwt
 from injector import inject
 
+from internal.exception import UnauthorizedException
+
 
 @inject
 @dataclass
@@ -36,8 +38,8 @@ class JwtService:
         try:
             return jwt.decode(token, secret_key, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:
-            raise ValueError("用户凭证已过期，请重新登录")
+            raise UnauthorizedException("用户凭证已过期，请重新登录")
         except jwt.InvalidTokenError:
-            raise ValueError("无效的用户凭证，请重新登录")
+            raise UnauthorizedException("无效的用户凭证，请重新登录")
         except Exception as e:
-            raise e
+            raise UnauthorizedException(str(e))

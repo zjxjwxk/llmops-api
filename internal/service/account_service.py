@@ -18,7 +18,7 @@ from uuid import UUID
 from flask import request
 from injector import inject
 
-from internal.exception import UnauthorizedException
+from internal.exception import FailException
 from internal.model import Account, AccountOAuth
 from pkg.password import hash_password, compare_password
 from pkg.sqlalchemy import SQLAlchemy
@@ -88,7 +88,7 @@ class AccountService(BaseService):
         # 检查邮箱账号是否存在
         account = self.get_account_by_email(email)
         if not account:
-            raise UnauthorizedException("账号不存在或密码错误，请核实后重试")
+            raise FailException("账号不存在或密码错误，请核实后重试")
 
         # 校验账号密码是否正确
         if not account.is_password_set or not compare_password(
@@ -96,7 +96,7 @@ class AccountService(BaseService):
                 account.password,
                 account.password_salt
         ):
-            raise UnauthorizedException("账号不存在或密码错误，请核实后重试")
+            raise FailException("账号不存在或密码错误，请核实后重试")
 
         # 生成Access Token
         expire_at = int((datetime.now() + timedelta(days=30)).timestamp())
