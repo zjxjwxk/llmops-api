@@ -10,6 +10,7 @@
 from sqlalchemy import Column, UUID, String, Text, DateTime, PrimaryKeyConstraint, text, Integer
 from sqlalchemy.dialects.postgresql import JSONB
 
+from internal.entity.app_entity import AppConfigType, DEFAULT_APP_CONFIG
 from internal.extension.database_extension import db
 
 
@@ -36,6 +37,28 @@ class App(db.Model):
         server_onupdate=text("CURRENT_TIMESTAMP(0)"),
     )
     created_at = Column(DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP(0)"))
+
+    @property
+    def draft_app_config(self) -> "AppConfigVersion":
+        """只读属性，当前应用的草稿配置"""
+
+        # 获取当前应用的历史配置版本
+        app_config_version = db.session.query(AppConfigVersion).filter(
+            AppConfigVersion.app_id == self.id,
+        ).one_or_none()
+
+        #
+        if not app_config_version:
+            app_config_version = AppConfigVersion(
+                app_id=self.id,
+                version=0,
+                config_type=AppConfigType.DRAFT,
+                **DEFAULT_APP_CONFIG
+            )
+            db.session.add(app_config_version)
+            db.session.commit()
+
+        return app_config_version
 
 
 class AppConfig(db.Model):
