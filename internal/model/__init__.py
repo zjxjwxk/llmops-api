@@ -8,12 +8,12 @@
 """
 from .account import Account, AccountOAuth
 from .api_tool import ApiToolProvider, ApiTool
-from .app import App, AppDataset
+from .app import App, AppConfig, AppConfigVersion, AppDataset
 from .conversation import Conversation, Message, MessageAgentThought
 from .dataset import Dataset, Document, Segment, KeywordTable, DatasetQuery, ProcessRule
 from .upload_file import UploadFile
 
-__all__ = ["App", "AppDataset",
+__all__ = ["App", "AppConfig", "AppConfigVersion", "AppDataset",
            "ApiToolProvider", "ApiTool", "UploadFile",
            "Dataset", "Document", "Segment", "KeywordTable", "DatasetQuery", "ProcessRule",
            "Conversation", "Message", "MessageAgentThought",
