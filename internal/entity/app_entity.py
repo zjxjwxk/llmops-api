@@ -66,7 +66,7 @@ DEFAULT_APP_CONFIG = {
             "enable": False,
             "preset_response": "",
         },
-        "output_config": {
+        "outputs_config": {
             "enable": False,
         },
     },

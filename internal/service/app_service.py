@@ -15,12 +15,12 @@ from injector import inject
 
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
 from internal.entity.app_entity import AppStatus, AppConfigType, DEFAULT_APP_CONFIG
-from internal.exception import NotFoundException, ForbiddenException
+from internal.exception import NotFoundException, ForbiddenException, ValidationException
+from internal.lib.helper import datetime_to_timestamp
 from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset
 from internal.schema.app_schema import CreateAppReq
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
-from ..lib.helper import datetime_to_timestamp
 
 
 @inject
@@ -216,3 +216,274 @@ class AppService(BaseService):
             "updated_at": datetime_to_timestamp(draft_app_config.updated_at),
             "created_at": datetime_to_timestamp(draft_app_config.created_at),
         }
+
+    def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
+        """校验应用草稿配置"""
+
+        # 校验草稿配置字段
+        acceptable_fields = [
+            "model_config", "dialog_round", "preset_prompt",
+            "tools", "workflows", "datasets", "retrieval_config",
+            "long_term_memory", "opening_statement", "opening_questions",
+            "speech_to_text", "text_to_speech", "review_config"
+        ]
+
+        if (
+                not draft_app_config
+                or not isinstance(draft_app_config, dict)
+                or set(draft_app_config.keys()) - set(acceptable_fields)
+        ):
+            raise ValidationException("草稿配置字段错误，请核实后重试")
+
+        # TODO: 校验model_config字段，待实现多模型后补充
+
+        # 校验携带对话轮数
+        if "dialog_round" in draft_app_config:
+            dialog_round = draft_app_config["dialog_round"]
+            if (
+                    not isinstance(dialog_round, int)
+                    or not (0 <= dialog_round <= 100)
+            ):
+                raise ValidationException("携带对话轮数范围必须在0~100之间")
+
+        # 校验预设提示词
+        if "preset_prompt" in draft_app_config:
+            preset_prompt = draft_app_config["preset_prompt"]
+            if (
+                    not isinstance(preset_prompt, str)
+                    or len(preset_prompt) > 2000
+            ):
+                raise ValidationException("人设与回复逻辑必须为字符串，长度在0~2000个字符之间")
+
+        # 校验工具列表
+        if "tools" in draft_app_config:
+            tools = draft_app_config["tools"]
+            validated_tools = []
+
+            if not isinstance(tools, list):
+                raise ValidationException("工具列表必须为列表类型")
+
+            if len(tools) > 5:
+                raise ValidationException("工具列表数量不能超过5个")
+
+            for tool in tools:
+                # 校验工具参数
+                if not tool or not isinstance(tool, dict):
+                    raise ValidationException("工具列表中的工具必须为字典类型")
+
+                if set(tool.keys()) != {"type", "provider_id", "tool_id", "params"}:
+                    raise ValidationException("工具参数名称错误")
+
+                if tool["type"] not in ["builtin_tool", "api_tool"]:
+                    raise ValidationException("工具类型不支持")
+
+                if (
+                        not tool["provider_id"]
+                        or not tool["tool_id"]
+                        or not isinstance(tool["provider_id"], str)
+                        or not isinstance(tool["tool_id"], str)
+                ):
+                    raise ValidationException("工具提供商或标识不能为空且必须为字符串类型")
+
+                if not isinstance(tool["params"], dict):
+                    raise ValidationException("工具自定义参数必须为字典类型")
+
+                # 校验工具是否存在
+                if tool["type"] == "builtin_tool":
+                    builtin_tool = self.builtin_provider_manager.get_tool(tool["provider_id"], tool["tool_id"])
+                    if not builtin_tool:
+                        continue
+                else:
+                    api_tool = self.db.session.query(ApiTool).filter(
+                        ApiTool.provider_id == tool["provider_id"],
+                        ApiTool.name == tool["tool_id"],
+                        ApiTool.account_id == account.id,
+                    )
+                    if not api_tool:
+                        continue
+
+                validated_tools.append(tool)
+
+            # 校验工具是否重复
+            unique_tool_ids = [f"{tool['provider_id']}_{tool['tool_id']}" for tool in validated_tools]
+            if len(unique_tool_ids) != len(validated_tools):
+                raise ValidationException("存在重复绑定的工具")
+
+            draft_app_config["tools"] = validated_tools
+
+        # TODO: 校验工作流列表
+        if "workflows" in draft_app_config:
+            draft_app_config["workflows"] = []
+
+        # 校验知识库列表
+        if "datasets" in draft_app_config:
+            datasets = draft_app_config["datasets"]
+
+            if not isinstance(datasets, list):
+                raise ValidationException("知识库列表必须为列表类型")
+
+            if len(datasets) > 5:
+                raise ValidationException("知识库列表数量不能超过5个")
+
+            for dataset_id in datasets:
+                # 校验知识库参数
+                try:
+                    UUID(dataset_id)
+                except Exception:
+                    raise ValidationException("知识库列表参数必须为UUID类型")
+
+            # 校验知识库是否重复
+            if len(set(datasets)) != len(datasets):
+                raise ValidationException("存在重复绑定的知识库")
+
+            # 校验知识库权限，去除不属于当前账号的知识库
+            dataset_records = self.db.session.query(Dataset).filter(
+                Dataset.id.in_(datasets),
+                Dataset.account_id == account.id,
+            ).all()
+            dataset_sets = set([str(dataset_record.id) for dataset_record in dataset_records])
+            draft_app_config["datasets"] = [dataset_id for dataset_id in datasets if dataset_id in dataset_sets]
+
+        # 校验检索配置
+        if "retrieval_config" in draft_app_config:
+            retrieval_config = draft_app_config["retrieval_config"]
+
+            # 校验检索配置参数
+            if not retrieval_config or not isinstance(retrieval_config, dict):
+                raise ValidationException("检索配置不能为空且必须为字典类型")
+
+            if set(retrieval_config.keys()) != {"retrieval_strategy", "k", "score"}:
+                raise ValidationException("检索配置参数名称错误")
+
+            if retrieval_config["retrieval_strategy"] not in ["semantic", "full_text", "hybrid"]:
+                raise ValidationException("检索策略类型不支持")
+
+            if not isinstance(retrieval_config["k"], int) or not (0 <= retrieval_config["k"] <= 10):
+                raise ValidationException("最大召回数量必须为整数类型，且范围必须在0~10之间")
+
+            if not isinstance(retrieval_config["score"], float) or not (0 <= retrieval_config["score"] <= 1):
+                raise ValidationException("最小匹配度必须为浮点数类型，且范围必须在0~1之间")
+
+        # 校验长期记忆
+        if "long_term_memory" in draft_app_config:
+            long_term_memory = draft_app_config["long_term_memory"]
+
+            if not long_term_memory or not isinstance(long_term_memory, dict):
+                raise ValidationException("长期记忆不能为空，且必须为字典类型")
+
+            if (
+                    set(long_term_memory.keys()) != {"enable"}
+                    or not isinstance(long_term_memory["enable"], bool)
+            ):
+                raise ValidationException("长期记忆参数名称错误，或参数值类型错误")
+
+        # 校验对话开场白
+        if "opening_statement" in draft_app_config:
+            opening_statement = draft_app_config["opening_statement"]
+
+            if not isinstance(opening_statement, str) or len(opening_statement) > 2000:
+                raise ValidationException("对话开场白必须为字符串类型，且长度不能超过2000")
+
+        # 校验对话开场建议问题列表
+        if "opening_questions" in draft_app_config:
+            opening_questions = draft_app_config["opening_questions"]
+
+            if not isinstance(opening_questions, list) or len(opening_questions) > 3:
+                raise ValidationException("对话开场建议问题列表必须为列表类型，且数量不能超过3个")
+
+            for opening_question in opening_questions:
+                if not isinstance(opening_question, str):
+                    raise ValidationException("对话开场建议问题列表中的问题必须为字符串类型")
+
+        # 校验语音转文本配置
+        if "speech_to_text" in draft_app_config:
+            speech_to_text = draft_app_config["speech_to_text"]
+
+            if not speech_to_text or not isinstance(speech_to_text, dict):
+                raise ValidationException("语音转文本配置不能为空，且必须为字典类型")
+
+            if (
+                    set(speech_to_text.keys()) != {"enable"}
+                    or not isinstance(speech_to_text["enable"], bool)
+            ):
+                raise ValidationException("语音转文本配置参数名称错误，或参数值类型错误")
+
+        # 校验文本转语音配置
+        if "text_to_speech" in draft_app_config:
+            text_to_speech = draft_app_config["text_to_speech"]
+
+            if not isinstance(text_to_speech, dict):
+                raise ValidationException("文本转语音配置不能为空，且必须为字典类型")
+
+            if (
+                    set(text_to_speech.keys()) != {"enable", "voice", "auto_play"}
+                    or not isinstance(text_to_speech["enable"], bool)
+                    # TODO: 校验音色参数，待实现多模态后
+                    or text_to_speech["voice"] not in ["echo"]
+                    or not isinstance(text_to_speech["auto_play"], bool)
+            ):
+                raise ValidationException("文本转语音配置参数名称错误，或参数值类型错误")
+
+        # 校验审核配置
+        if "review_config" in draft_app_config:
+            review_config = draft_app_config["review_config"]
+
+            # 校验审核参数
+            if not review_config or not isinstance(review_config, dict):
+                raise ValidationException("审核配置不能为空，且必须为字典类型")
+
+            if set(review_config.keys()) != {"enable", "keywords", "inputs_config", "outputs_config"}:
+                raise ValidationException("审核配置参数名称错误")
+
+            if not isinstance(review_config["enable"], bool):
+                raise ValidationException("审核配置中启用状态必须为布尔类型")
+
+            # 校验敏感词列表
+            if (
+                    not isinstance(review_config["keywords"], list)
+                    or (review_config["enable"] and len(review_config["keywords"]) == 0)
+                    or len(review_config["keywords"]) > 100
+            ):
+                raise ValidationException(
+                    "审核配置中敏感词列表必须为列表类型；当启用审核时，列表不能为空；数量不能超过100个")
+
+            for keyword in review_config["keywords"]:
+                if not isinstance(keyword, str):
+                    raise ValidationException("审核配置的敏感词列表中的敏感词必须为字符串类型")
+
+            # 校验输入审核配置
+            if not review_config["inputs_config"] or not isinstance(review_config["inputs_config"], dict):
+                raise ValidationException("审核配置中输入审核配置不能为空，且必须为字典类型")
+
+            if (
+                    set(review_config["inputs_config"]) != {"enable", "preset_response"}
+                    or not isinstance(review_config["inputs_config"]["enable"], bool)
+                    or not isinstance(review_config["inputs_config"]["preset_response"], str)
+            ):
+                raise ValidationException("审核配置中输入审核配置参数名称错误，或参数值类型错误")
+
+            # 校验输出审核配置
+            if not review_config["outputs_config"] or not isinstance(review_config["outputs_config"], dict):
+                raise ValidationException("审核配置中输出审核配置不能为空，且必须为字典类型")
+
+            if (
+                    set(review_config["outputs_config"]) != {"enable"}
+                    or not isinstance(review_config["outputs_config"]["enable"], bool)
+            ):
+                raise ValidationException("审核配置中输出审核配置参数名称错误，或参数值类型错误")
+
+            # 校验输入审核或输出审核配置是否开启
+            if review_config["enable"]:
+                if (
+                        review_config["inputs_config"]["enable"] is False
+                        and review_config["outputs_config"]["enable"] is False
+                ):
+                    raise ValidationException("输入审核或输出审核至少至少开启一项")
+
+                if (
+                        review_config["inputs_config"]["enable"]
+                        and review_config["inputs_config"]["preset_response"].strip() == ""
+                ):
+                    raise ValidationException("输入审核的预设响应不能为空")
+
+        return draft_app_config
