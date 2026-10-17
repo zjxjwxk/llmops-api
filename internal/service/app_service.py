@@ -13,12 +13,13 @@ from uuid import UUID
 
 from flask import request
 from injector import inject
+from sqlalchemy import func
 
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
 from internal.entity.app_entity import AppStatus, AppConfigType, DEFAULT_APP_CONFIG
 from internal.exception import NotFoundException, ForbiddenException, ValidationException
 from internal.lib.helper import datetime_to_timestamp
-from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset
+from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset, AppConfig, AppDataset
 from internal.schema.app_schema import CreateAppReq
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
@@ -227,7 +228,7 @@ class AppService(BaseService):
     ) -> AppConfigVersion:
         """更新应用草稿配置"""
 
-        # 获取应用信息并校验
+        # 获取应用信息
         app = self.get_app(app_id, account)
 
         # 校验传入应用草稿配置
@@ -244,6 +245,77 @@ class AppService(BaseService):
         )
 
         return draft_app_config_record
+
+    def publish_draft_app_config(self, app_id: UUID, account: Account) -> App:
+        """发布应用配置"""
+
+        # 获取应用信息
+        app = self.get_app(app_id, account)
+
+        # 获取应用草稿配置
+        draft_app_config = self.get_draft_app_config(app_id, account)
+
+        # 创建应用运行配置
+        app_config = self.create(
+            AppConfig,
+            app_id=app_id,
+            model_config=draft_app_config["model_config"],
+            dialog_round=draft_app_config["dialog_round"],
+            preset_prompt=draft_app_config["preset_prompt"],
+            tools=[
+                {
+                    "type": tool["type"],
+                    "provider_id": tool["provider"]["id"],
+                    "tool_id": tool["tool"]["name"],
+                    "params": tool["tool"]["params"],
+                }
+                for tool in draft_app_config["tools"]
+            ],
+            # TODO: 待工作流模块后更新
+            workflows=draft_app_config["workflows"],
+            retrieval_config=draft_app_config["retrieval_config"],
+            long_term_memory=draft_app_config["long_term_memory"],
+            opening_statement=draft_app_config["opening_statement"],
+            opening_questions=draft_app_config["opening_questions"],
+            speech_to_text=draft_app_config["speech_to_text"],
+            text_to_speech=draft_app_config["text_to_speech"],
+            review_config=draft_app_config["review_config"],
+        )
+
+        # 更新应用关联的运行配置及应用状态
+        self.update(app, app_config_id=app_config.id, status=AppStatus.PUBLISHED)
+
+        # 删除原有知识库关联记录
+        with self.db.auto_commit():
+            self.db.session.query(AppDataset).filter(
+                AppDataset.app_id == app_id
+            ).delete()
+
+        # 创建新的知识库关联记录
+        for dataset in draft_app_config["datasets"]:
+            self.create(AppDataset, app_id=app_id, dataset_id=dataset["id"])
+
+        # 获取应用草稿配置，并去除草稿相关字段
+        draft_app_config_copy = app.draft_app_config.__dict__.copy()
+        remove_fields = ["id", "version", "config_type", "updated_at", "created_at", "_sa_instance_state"]
+        for field in remove_fields:
+            draft_app_config_copy.pop(field)
+
+        # 获取当前最新发布版本
+        max_version = self.db.session.query(func.coalesce(func.max(AppConfigVersion.version), 0)).filter(
+            AppConfigVersion.app_id == app_id,
+            AppConfigVersion.config_type == AppConfigType.PUBLISHED,
+        ).scalar()
+
+        # 创建应用发布历史配置
+        self.create(
+            AppConfigVersion,
+            version=max_version + 1,
+            config_type=AppConfigType.PUBLISHED,
+            **draft_app_config_copy,
+        )
+
+        return app
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验应用草稿配置"""

@@ -70,5 +70,13 @@ class AppHandler:
 
         return success_message("更新应用草稿配置成功")
 
+    @login_required
+    def publish(self, app_id: UUID):
+        """发布应用配置"""
+
+        self.app_service.publish_draft_app_config(app_id, current_user)
+
+        return success_message("发布应用配置成功")
+
     def ping(self):
         return success_message()
