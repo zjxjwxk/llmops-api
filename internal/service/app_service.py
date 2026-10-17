@@ -13,14 +13,15 @@ from uuid import UUID
 
 from flask import request
 from injector import inject
-from sqlalchemy import func
+from sqlalchemy import func, desc
 
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
 from internal.entity.app_entity import AppStatus, AppConfigType, DEFAULT_APP_CONFIG
-from internal.exception import NotFoundException, ForbiddenException, ValidationException
+from internal.exception import NotFoundException, ForbiddenException, ValidationException, FailException
 from internal.lib.helper import datetime_to_timestamp
 from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset, AppConfig, AppDataset
-from internal.schema.app_schema import CreateAppReq
+from internal.schema.app_schema import CreateAppReq, GetPublishHistoriesWithPageReq
+from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
 from .base_service import BaseService
 
@@ -219,6 +220,30 @@ class AppService(BaseService):
             "created_at": datetime_to_timestamp(draft_app_config.created_at),
         }
 
+    def get_publish_histories_with_page(
+            self,
+            app_id: UUID,
+            req: GetPublishHistoriesWithPageReq,
+            account: Account
+    ) -> tuple[list[AppConfigVersion], Paginator]:
+        """获取应用发布历史列表分页"""
+
+        # 获取应用信息（校验用户权限）
+        self.get_app(app_id, account)
+
+        # 构建分页器
+        paginator = Paginator(db=self.db, req=req)
+
+        # 分页获取数据
+        app_config_versions = paginator.paginate(
+            self.db.session.query(AppConfigVersion).filter(
+                AppConfigVersion.app_id == app_id,
+                AppConfigVersion.config_type == AppConfigType.PUBLISHED,
+            ).order_by(desc("version"))
+        )
+
+        return app_config_versions, paginator
+
     def update_draft_app_config(
             self,
             app_id: UUID,
@@ -314,6 +339,26 @@ class AppService(BaseService):
             config_type=AppConfigType.PUBLISHED,
             **draft_app_config_copy,
         )
+
+        return app
+
+    def cancel_publish_app_config(self, app_id: UUID, account: Account) -> App:
+        """取消发布应用配置"""
+
+        # 获取应用信息
+        app = self.get_app(app_id, account)
+
+        if app.status != AppStatus.PUBLISHED:
+            raise FailException("当前应用未发布，请核实后重试")
+
+        # 更新应用发布状态，并清空应用关联配置ID
+        self.update(app, status=AppStatus.DRAFT, app_config_id=None)
+
+        # 删除应用关联的知识库信息
+        with self.db.auto_commit():
+            self.db.session.query(AppDataset).filter(
+                AppDataset.app_id == app_id
+            ).delete()
 
         return app
 
