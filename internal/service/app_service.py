@@ -7,6 +7,7 @@
 @File   :   app_service.py
 """
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -216,6 +217,33 @@ class AppService(BaseService):
             "updated_at": datetime_to_timestamp(draft_app_config.updated_at),
             "created_at": datetime_to_timestamp(draft_app_config.created_at),
         }
+
+    def update_draft_app_config(
+            self,
+            app_id: UUID,
+            draft_app_config:
+            dict[str, Any],
+            account: Account
+    ) -> AppConfigVersion:
+        """更新应用草稿配置"""
+
+        # 获取应用信息并校验
+        app = self.get_app(app_id, account)
+
+        # 校验传入应用草稿配置
+        draft_app_config = self._validate_draft_app_config(draft_app_config, account)
+
+        # 获取最新应用草稿配置
+        draft_app_config_record = app.draft_app_config
+
+        self.update(
+            draft_app_config_record,
+            # TODO: 由于目前model使用server_onupdate，需暂时手动设置更新时间
+            updated_at=datetime.now(),
+            **draft_app_config,
+        )
+
+        return draft_app_config_record
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验应用草稿配置"""

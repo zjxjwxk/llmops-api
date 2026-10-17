@@ -65,9 +65,10 @@ class AppHandler:
         # 提取请求
         draft_app_config = request.get_json(force=True, silent=True) or {}
 
-        draft_app_config = self.app_service._validate_draft_app_config(draft_app_config, current_user)
+        # 调用服务更新应用草稿配置
+        self.app_service.update_draft_app_config(app_id, draft_app_config, current_user)
 
-        return success_json(draft_app_config)
+        return success_message("更新应用草稿配置成功")
 
     def ping(self):
         return success_message()

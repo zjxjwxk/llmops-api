@@ -45,9 +45,10 @@ class App(db.Model):
         # 获取当前应用的历史配置版本
         app_config_version = db.session.query(AppConfigVersion).filter(
             AppConfigVersion.app_id == self.id,
+            AppConfigVersion.config_type == AppConfigType.DRAFT,
         ).one_or_none()
 
-        #
+        # 若草稿配置不存在，则新增默认草稿配置
         if not app_config_version:
             app_config_version = AppConfigVersion(
                 app_id=self.id,
