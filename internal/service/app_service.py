@@ -253,7 +253,7 @@ class AppService(BaseService):
     ) -> AppConfigVersion:
         """更新应用草稿配置"""
 
-        # 获取应用信息
+        # 获取应用信息（并校验权限）
         app = self.get_app(app_id, account)
 
         # 校验传入应用草稿配置
@@ -274,7 +274,7 @@ class AppService(BaseService):
     def publish_draft_app_config(self, app_id: UUID, account: Account) -> App:
         """发布应用配置"""
 
-        # 获取应用信息
+        # 获取应用信息（并校验权限）
         app = self.get_app(app_id, account)
 
         # 获取应用草稿配置
@@ -345,7 +345,7 @@ class AppService(BaseService):
     def cancel_publish_app_config(self, app_id: UUID, account: Account) -> App:
         """取消发布应用配置"""
 
-        # 获取应用信息
+        # 获取应用信息（并校验权限）
         app = self.get_app(app_id, account)
 
         if app.status != AppStatus.PUBLISHED:
@@ -361,6 +361,38 @@ class AppService(BaseService):
             ).delete()
 
         return app
+
+    def fallback_history_to_draft(self, app_id: UUID, app_config_version_id: UUID,
+                                  account: Account) -> AppConfigVersion:
+        """回退应用历史配置到草稿"""
+
+        # 获取应用信息（并校验权限）
+        app = self.get_app(app_id, account)
+
+        # 获取应用历史版本配置
+        app_config_version = self.get(AppConfigVersion, app_config_version_id)
+        if not app_config_version:
+            raise NotFoundException("该应用历史版本配置不存在，请核实后重试")
+
+        # 拷贝历史配置为草稿配置，并去除特定字段
+        draft_app_config_dict = app_config_version.__dict__.copy()
+        remove_fields = ["id", "app_id", "version", "config_type", "updated_at", "created_at", "_sa_instance_state"]
+        for field in remove_fields:
+            draft_app_config_dict.pop(field)
+
+        # 校验草稿配置
+        draft_app_config_dict = self._validate_draft_app_config(draft_app_config_dict, account)
+
+        # 更新草稿配置
+        draft_app_config_record = app.draft_app_config
+        self.update(
+            draft_app_config_record,
+            # TODO: 由于目前model使用server_onupdate，需暂时手动设置更新时间
+            updated_at=datetime.now(),
+            **draft_app_config_dict,
+        )
+
+        return draft_app_config_record
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验应用草稿配置"""

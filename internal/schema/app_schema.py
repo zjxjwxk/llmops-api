@@ -6,10 +6,12 @@
 @Time   :   2026/2/23 16:25
 @File   :   app_schema.py
 """
+from uuid import UUID
+
 from flask_wtf import FlaskForm
 from marshmallow import Schema, fields, pre_dump
 from wtforms.fields.simple import StringField
-from wtforms.validators import DataRequired, Length, URL, Optional
+from wtforms.validators import DataRequired, Length, URL, Optional, ValidationError
 
 from internal.lib.helper import datetime_to_timestamp
 from internal.model import App, AppConfigVersion
@@ -80,3 +82,19 @@ class GetPublishHistoriesWithPageResp(Schema):
             "version": data.version,
             "created_at": datetime_to_timestamp(data.created_at),
         }
+
+
+class FallbackHistoryToDraftReq(FlaskForm):
+    """回退历史版本到草稿请求"""
+
+    app_config_version_id = StringField("app_config_version_id", validators=[
+        DataRequired("回退配置版本不能为空")
+    ])
+
+    def validate_app_config_version_id(self, field: StringField) -> None:
+        """校验回退配置版本ID"""
+
+        try:
+            UUID(field.data)
+        except Exception:
+            raise ValidationError("回退配置版本ID必须为UUID类型")

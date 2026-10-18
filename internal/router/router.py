@@ -47,6 +47,8 @@ class Router:
         blue_print.add_url_rule("/apps/<uuid:app_id>/publish", methods=["POST"], view_func=self.app_handler.publish)
         blue_print.add_url_rule("/apps/<uuid:app_id>/cancel-publish", methods=["POST"],
                                 view_func=self.app_handler.cancel_publish)
+        blue_print.add_url_rule("/apps/<uuid:app_id>/fallback-history", methods=["POST"],
+                                view_func=self.app_handler.fallback_history_to_draft)
 
         # 内置插件广场模块
         blue_print.add_url_rule("/builtin-tools", view_func=self.builtin_tool_handler.get_builtin_tools)
