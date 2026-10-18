@@ -11,7 +11,9 @@ from sqlalchemy import Column, UUID, String, Text, DateTime, PrimaryKeyConstrain
 from sqlalchemy.dialects.postgresql import JSONB
 
 from internal.entity.app_entity import AppConfigType, DEFAULT_APP_CONFIG
+from internal.entity.conversation_entity import InvokeFrom
 from internal.extension.database_extension import db
+from .conversation import Conversation
 
 
 class App(db.Model):
@@ -60,6 +62,36 @@ class App(db.Model):
             db.session.commit()
 
         return app_config_version
+
+    @property
+    def debug_conversation(self) -> "Conversation":
+        """获取应用调试会话"""
+
+        # 获取应用调试会话记录
+        debug_conversation = None
+        if self.debug_conversation_id is not None:
+            debug_conversation = db.session.query(Conversation).filter(
+                Conversation.id == self.debug_conversation_id,
+                Conversation.invoke_from == InvokeFrom.DEBUGGER,
+            ).one_or_none()
+
+        # 若应用调试会话不存在，则创建新的调试会话记录
+        if not self.debug_conversation_id or not debug_conversation:
+            with db.auto_commit():
+                # 创建应用调试会话记录
+                debug_conversation = Conversation(
+                    app_id=self.id,
+                    name="New Conversation",
+                    invoke_from=InvokeFrom.DEBUGGER,
+                    created_by=self.account_id,
+                )
+                db.session.add(debug_conversation)
+                db.session.flush()
+
+                # 更新应用的调试会话ID
+                self.debug_conversation_id = debug_conversation.id
+
+        return debug_conversation
 
 
 class AppConfig(db.Model):

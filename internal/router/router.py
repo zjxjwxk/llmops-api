@@ -42,13 +42,19 @@ class Router:
         blue_print.add_url_rule("/apps/<uuid:app_id>/draft-app-config", view_func=self.app_handler.get_draft_app_config)
         blue_print.add_url_rule("/apps/<uuid:app_id>/publish-histories",
                                 view_func=self.app_handler.get_publish_histories_with_page)
+        blue_print.add_url_rule("/apps/<uuid:app_id>/summary",
+                                view_func=self.app_handler.get_debug_conversation_summary)
         blue_print.add_url_rule("/apps/<uuid:app_id>/draft-app-config", methods=["POST"],
                                 view_func=self.app_handler.update_draft_app_config)
+        blue_print.add_url_rule("/apps/<uuid:app_id>/summary", methods=["POST"],
+                                view_func=self.app_handler.update_debug_conversation_summary)
         blue_print.add_url_rule("/apps/<uuid:app_id>/publish", methods=["POST"], view_func=self.app_handler.publish)
         blue_print.add_url_rule("/apps/<uuid:app_id>/cancel-publish", methods=["POST"],
                                 view_func=self.app_handler.cancel_publish)
         blue_print.add_url_rule("/apps/<uuid:app_id>/fallback-history", methods=["POST"],
                                 view_func=self.app_handler.fallback_history_to_draft)
+        blue_print.add_url_rule("/apps/<uuid:app_id>/conversations/delete-debug-conversation", methods=["POST"],
+                                view_func=self.app_handler.delete_debug_conversation)
 
         # 内置插件广场模块
         blue_print.add_url_rule("/builtin-tools", view_func=self.builtin_tool_handler.get_builtin_tools)

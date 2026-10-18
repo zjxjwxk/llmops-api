@@ -14,7 +14,7 @@ from flask_login import login_required, current_user
 from injector import inject
 
 from internal.schema.app_schema import CreateAppReq, GetAppResp, GetPublishHistoriesWithPageReq, \
-    GetPublishHistoriesWithPageResp, FallbackHistoryToDraftReq
+    GetPublishHistoriesWithPageResp, FallbackHistoryToDraftReq, UpdateDebugConversationSummaryReq
 from internal.service import AppService
 from pkg.paginator import PageModel
 from pkg.response import success_message, validate_error_json, success_json
@@ -77,6 +77,14 @@ class AppHandler:
         return success_json(PageModel(list=resp.dump(app_config_versions), paginator=paginator))
 
     @login_required
+    def get_debug_conversation_summary(self, app_id: UUID):
+        """获取应用调试会话长期记忆"""
+
+        summary = self.app_service.get_debug_conversation_summary(app_id, current_user)
+
+        return success_json({"summary": summary})
+
+    @login_required
     def update_draft_app_config(self, app_id: UUID):
         """更新应用草稿配置"""
 
@@ -87,6 +95,20 @@ class AppHandler:
         self.app_service.update_draft_app_config(app_id, draft_app_config, current_user)
 
         return success_message("更新应用草稿配置成功")
+
+    @login_required
+    def update_debug_conversation_summary(self, app_id: UUID):
+        """更新应用调试会话长期记忆"""
+
+        # 提取请求并校验
+        req = UpdateDebugConversationSummaryReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        # 调用服务更新调试会话长期记忆
+        self.app_service.update_debug_conversation_summary(app_id, req.summary.data, current_user)
+
+        return success_message("更新应用调试会话长期记忆成功")
 
     @login_required
     def publish(self, app_id: UUID):
@@ -117,6 +139,14 @@ class AppHandler:
         self.app_service.fallback_history_to_draft(app_id, req.app_config_version_id.data, current_user)
 
         return success_message("回退应用历史版本到草稿成功")
+
+    @login_required
+    def delete_debug_conversation(self, app_id: UUID):
+        """删除应用调试会话记录"""
+
+        self.app_service.delete_debug_conversation(app_id, current_user)
+
+        return success_message("删除应用调试会话记录成功")
 
     def ping(self):
         return success_message()

@@ -84,6 +84,12 @@ class GetPublishHistoriesWithPageResp(Schema):
         }
 
 
+class UpdateDebugConversationSummaryReq(FlaskForm):
+    """更新应用调试会话长期记忆请求"""
+
+    summary = StringField("summary", default="")
+
+
 class FallbackHistoryToDraftReq(FlaskForm):
     """回退历史版本到草稿请求"""
 

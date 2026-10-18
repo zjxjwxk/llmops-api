@@ -19,7 +19,7 @@ from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
 from internal.entity.app_entity import AppStatus, AppConfigType, DEFAULT_APP_CONFIG
 from internal.exception import NotFoundException, ForbiddenException, ValidationException, FailException
 from internal.lib.helper import datetime_to_timestamp
-from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset, AppConfig, AppDataset
+from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset, AppConfig, AppDataset, Conversation
 from internal.schema.app_schema import CreateAppReq, GetPublishHistoriesWithPageReq
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
@@ -244,6 +244,19 @@ class AppService(BaseService):
 
         return app_config_versions, paginator
 
+    def get_debug_conversation_summary(self, app_id: UUID, account: Account) -> str:
+        """获取应用调试会话长期记忆"""
+
+        # 获取应用信息，并校验权限
+        app = self.get_app(app_id, account)
+
+        # 获取应用草稿配置，并校验长期记忆是否开启
+        draft_app_config = self.get_draft_app_config(app_id, account)
+        if draft_app_config["long_term_memory"]["enable"] is False:
+            raise FailException("该应用尚未开启长期记忆")
+
+        return app.debug_conversation.summary
+
     def update_draft_app_config(
             self,
             app_id: UUID,
@@ -270,6 +283,23 @@ class AppService(BaseService):
         )
 
         return draft_app_config_record
+
+    def update_debug_conversation_summary(self, app_id: UUID, summary: str, account: Account) -> Conversation:
+        """更新应用调试会话长期记忆"""
+
+        # 获取应用信息，并校验权限
+        app = self.get_app(app_id, account)
+
+        # 获取应用草稿配置，并校验长期记忆是否开启
+        draft_app_config = self.get_draft_app_config(app_id, account)
+        if draft_app_config["long_term_memory"]["enable"] is False:
+            raise FailException("该应用尚未开启长期记忆")
+
+        # 更新应用调试会话长期记忆
+        debug_conversation = app.debug_conversation
+        self.update(debug_conversation, summary=summary)
+
+        return debug_conversation
 
     def publish_draft_app_config(self, app_id: UUID, account: Account) -> App:
         """发布应用配置"""
@@ -362,8 +392,12 @@ class AppService(BaseService):
 
         return app
 
-    def fallback_history_to_draft(self, app_id: UUID, app_config_version_id: UUID,
-                                  account: Account) -> AppConfigVersion:
+    def fallback_history_to_draft(
+            self,
+            app_id: UUID,
+            app_config_version_id: UUID,
+            account: Account
+    ) -> AppConfigVersion:
         """回退应用历史配置到草稿"""
 
         # 获取应用信息（并校验权限）
@@ -393,6 +427,21 @@ class AppService(BaseService):
         )
 
         return draft_app_config_record
+
+    def delete_debug_conversation(self, app_id: UUID, account: Account) -> App:
+        """删除应用调试会话记录"""
+
+        # 获取应用信息，并校验权限
+        app = self.get_app(app_id, account)
+
+        # 判断调试对话是否存在
+        if not app.debug_conversation_id:
+            return app
+
+        # 删除应用调试对话ID字段
+        self.update(app, debug_conversation_id=None)
+
+        return app
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验应用草稿配置"""
