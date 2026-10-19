@@ -18,7 +18,8 @@ from langgraph.constants import END
 from langgraph.graph.state import CompiledStateGraph, StateGraph
 
 from internal.core.agent.agents.base_agent import BaseAgent
-from internal.core.agent.entities.agent_entity import AgentState, AGENT_SYSTEM_PROMPT_TEMPLATE
+from internal.core.agent.entities.agent_entity import AgentState, AGENT_SYSTEM_PROMPT_TEMPLATE, \
+    DATASET_RETRIEVAL_TOOL_NAME
 from internal.core.agent.entities.queue_entity import AgentQueueEvent, QueueEvent
 from internal.exception import FailException
 
@@ -197,7 +198,7 @@ class FunctionCallAgent(BaseAgent):
             ))
 
             # 判断事件类型（工具名称 => 知识库检索 ｜ Agent动作）
-            if tool_call["name"] == "dataset_retrieval":
+            if tool_call["name"] == DATASET_RETRIEVAL_TOOL_NAME:
                 event = QueueEvent.DATASET_RETRIEVAL
             else:
                 event = QueueEvent.AGENT_ACTION

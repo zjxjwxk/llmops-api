@@ -62,3 +62,6 @@ class AgentState(MessagesState):
 
     history: list[AnyMessage]  # 短期记忆
     long_term_memory: str  # 长期记忆
+
+
+DATASET_RETRIEVAL_TOOL_NAME = "dataset_retrieval"

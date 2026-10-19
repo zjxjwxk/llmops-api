@@ -15,7 +15,7 @@ from injector import inject
 
 from internal.schema.app_schema import CreateAppReq, GetAppResp, GetPublishHistoriesWithPageReq, \
     GetPublishHistoriesWithPageResp, FallbackHistoryToDraftReq, UpdateDebugConversationSummaryReq
-from internal.service import AppService
+from internal.service import AppService, RetrievalService
 from pkg.paginator import PageModel
 from pkg.response import success_message, validate_error_json, success_json
 
@@ -26,6 +26,7 @@ class AppHandler:
     """应用控制器"""
 
     app_service: AppService
+    retrieval_service: RetrievalService
 
     @login_required
     def create_app(self):
@@ -149,4 +150,20 @@ class AppHandler:
         return success_message("删除应用调试会话记录成功")
 
     def ping(self):
-        return success_message()
+        from internal.entity.dataset_entity import RetrievalStrategy, RetrievalSource
+
+        dataset_retrieval_tool = self.retrieval_service.create_langchain_tool_from_search(
+            dataset_ids=[UUID("735369fd-aef6-414a-8e66-11e940d34b08"), UUID("bb53b503-d84e-4307-991e-fdb76d0e1466")],
+            account=current_user,
+            retrieval_strategy=RetrievalStrategy.SEMANTIC,
+            k=10,
+            score=0.5,
+            retrieval_source=RetrievalSource.DEBUGGER,
+        )
+        print("工具名称：", dataset_retrieval_tool.name)
+        print("工具描述：", dataset_retrieval_tool.description)
+        print("工具参数：", dataset_retrieval_tool.args)
+
+        content = dataset_retrieval_tool.invoke({"query": "介绍一下什么是 LLMOps？"})
+
+        return success_json({"content": content})
