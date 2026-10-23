@@ -14,10 +14,10 @@ from flask_login import login_required, current_user
 from injector import inject
 
 from internal.schema.app_schema import CreateAppReq, GetAppResp, GetPublishHistoriesWithPageReq, \
-    GetPublishHistoriesWithPageResp, FallbackHistoryToDraftReq, UpdateDebugConversationSummaryReq
+    GetPublishHistoriesWithPageResp, FallbackHistoryToDraftReq, UpdateDebugConversationSummaryReq, DebugChatReq
 from internal.service import AppService, RetrievalService
 from pkg.paginator import PageModel
-from pkg.response import success_message, validate_error_json, success_json
+from pkg.response import success_message, validate_error_json, success_json, compact_generate_response
 
 
 @inject
@@ -149,21 +149,19 @@ class AppHandler:
 
         return success_message("删除应用调试会话记录成功")
 
+    @login_required
+    def debug_chat(self, app_id: UUID):
+        """应用调试会话"""
+
+        # 提取请求并校验
+        req = DebugChatReq()
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        # 调用服务发起应用调试会话
+        response = self.app_service.debug_chat(app_id, req.query.data, current_user)
+
+        return compact_generate_response(response)
+
     def ping(self):
-        from internal.entity.dataset_entity import RetrievalStrategy, RetrievalSource
-
-        dataset_retrieval_tool = self.retrieval_service.create_langchain_tool_from_search(
-            dataset_ids=[UUID("735369fd-aef6-414a-8e66-11e940d34b08"), UUID("bb53b503-d84e-4307-991e-fdb76d0e1466")],
-            account=current_user,
-            retrieval_strategy=RetrievalStrategy.SEMANTIC,
-            k=10,
-            score=0.5,
-            retrieval_source=RetrievalSource.DEBUGGER,
-        )
-        print("工具名称：", dataset_retrieval_tool.name)
-        print("工具描述：", dataset_retrieval_tool.description)
-        print("工具参数：", dataset_retrieval_tool.args)
-
-        content = dataset_retrieval_tool.invoke({"query": "介绍一下什么是 LLMOps？"})
-
-        return success_json({"content": content})
+        pass

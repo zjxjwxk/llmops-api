@@ -33,7 +33,7 @@ class TokenBufferMemory:
 
         # 查询历史消息列表，按时间倒序，并且需为有效消息
         messages = self.db.session.query(Message).filter(
-            Message.conversation_id == self.conversation.conversation.id,
+            Message.conversation_id == self.conversation.id,
             Message.answer != "",
             Message.is_deleted == False,
             Message.status == MessageStatus.NORMAL,
@@ -51,7 +51,7 @@ class TokenBufferMemory:
         # 计算Token长度并截取多余消息
         return trim_messages(
             messages=prompt_messages,
-            max_token_limit=max_token_limit,
+            max_tokens=max_token_limit,
             token_counter=self.model_instance,
             strategy="last",
         )

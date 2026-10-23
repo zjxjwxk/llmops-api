@@ -86,7 +86,7 @@ class ApiProviderManager(BaseModel):
 
         return StructuredTool.from_function(
             func=self._create_tool_func_from_tool_entity(tool_entity),
-            name=f"{tool_entity.id}_{tool_entity.name}",
+            name=f"api_tool_{tool_entity.id}_{tool_entity.name}",
             description=tool_entity.description,
             args_schema=self._create_model_from_parameters(tool_entity.parameters),
         )

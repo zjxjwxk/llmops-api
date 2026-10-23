@@ -11,6 +11,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
+from flask import Flask
 from injector import inject
 from langchain_classic.retrievers import EnsembleRetriever
 from langchain_core.documents import Document as LangChainDocument
@@ -18,15 +19,15 @@ from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, Field
 from sqlalchemy import update
 
+from internal.core.agent.entities.agent_entity import DATASET_RETRIEVAL_TOOL_NAME
 from internal.entity.dataset_entity import RetrievalStrategy, RetrievalSource
 from internal.exception import NotFoundException
-from internal.model import Dataset, DatasetQuery, Segment, Account
+from internal.lib.helper import combine_documents
+from internal.model import Dataset, DatasetQuery, Segment
+from internal.service.base_service import BaseService
+from internal.service.jieba_service import JiebaService
+from internal.service.vector_database_service import VectorDatabaseService
 from pkg.sqlalchemy import SQLAlchemy
-from .base_service import BaseService
-from .jieba_service import JiebaService
-from .vector_database_service import VectorDatabaseService
-from ..core.agent.entities.agent_entity import DATASET_RETRIEVAL_TOOL_NAME
-from ..lib.helper import combine_documents
 
 
 @inject
@@ -42,7 +43,7 @@ class RetrievalService(BaseService):
             self,
             dataset_ids: list[UUID],
             query: str,
-            account: Account,
+            account_id: UUID,
             retrieval_strategy: str = RetrievalStrategy.SEMANTIC,
             k: int = 4,
             score: float = 0,
@@ -53,7 +54,7 @@ class RetrievalService(BaseService):
         # 获取知识库列表并校验权限
         datasets = self.db.session.query(Dataset).filter(
             Dataset.id.in_(dataset_ids),
-            Dataset.account_id == account.id
+            Dataset.account_id == account_id
         ).all()
 
         if datasets is None or len(datasets) == 0:
@@ -105,7 +106,7 @@ class RetrievalService(BaseService):
                 source=retrieval_source,
                 # TODO: App配置模块完成后实现
                 source_app_id=None,
-                created_by=account.id,
+                created_by=account_id,
             )
 
         # 批量更新片段命中次数
@@ -122,8 +123,9 @@ class RetrievalService(BaseService):
 
     def create_langchain_tool_from_search(
             self,
+            flask_app: Flask,
             dataset_ids: list[UUID],
-            account: Account,
+            account_id: UUID,
             retrieval_strategy: str = RetrievalStrategy.SEMANTIC,
             k: int = 4,
             score: float = 0,
@@ -141,15 +143,16 @@ class RetrievalService(BaseService):
             """如果用户的提问超出大模型的知识范围，有必要检索知识库时，可以尝试调用该工具，输入为检索query语句，输出为检索到的知识库内容字符串"""
 
             # 检索知识库
-            documents = self.search_in_datasets(
-                dataset_ids=dataset_ids,
-                query=query,
-                account=account,
-                retrieval_strategy=retrieval_strategy,
-                k=k,
-                score=score,
-                retrieval_source=retrieval_source
-            )
+            with flask_app.app_context():
+                documents = self.search_in_datasets(
+                    dataset_ids=dataset_ids,
+                    query=query,
+                    account_id=account_id,
+                    retrieval_strategy=retrieval_strategy,
+                    k=k,
+                    score=score,
+                    retrieval_source=retrieval_source
+                )
 
             if len(documents) == 0:
                 return "知识库内没有检索到相关内容"

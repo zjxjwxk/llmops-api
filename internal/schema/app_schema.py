@@ -104,3 +104,11 @@ class FallbackHistoryToDraftReq(FlaskForm):
             UUID(field.data)
         except Exception:
             raise ValidationError("回退配置版本ID必须为UUID类型")
+
+
+class DebugChatReq(FlaskForm):
+    """应用调试会话请求"""
+
+    query = StringField("query", validators=[
+        DataRequired("用户发送消息不能为空")
+    ])

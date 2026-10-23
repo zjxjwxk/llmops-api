@@ -146,7 +146,7 @@ class DatasetService(BaseService):
         # 调用检索服务检索LangChain文档列表（结果已排序）
         langchain_documents = self.retrieval_service.search_in_datasets(
             dataset_ids=[dataset_id],
-            account=account,
+            account_id=account.id,
             **req.data,
         )
         langchain_documents_dict = {

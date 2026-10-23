@@ -6,24 +6,37 @@
 @Time   :   2026/2/25 21:16
 @File   :   app_service.py
 """
+import json
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Generator
 from uuid import UUID
 
-from flask import request
+from flask import request, current_app
 from injector import inject
+from langchain_openai import ChatOpenAI
+from redis import Redis
 from sqlalchemy import func, desc
 
+from internal.core.agent.agents import FunctionCallAgent
+from internal.core.agent.agents.agent_queue_manager import AgentQueueManager
+from internal.core.agent.entities.agent_entity import AgentConfig
+from internal.core.memory import TokenBufferMemory
+from internal.core.tools.api_tools.entities import ToolEntity
+from internal.core.tools.api_tools.providers import ApiProviderManager
 from internal.core.tools.builtin_tools.providers import BuiltinProviderManager
 from internal.entity.app_entity import AppStatus, AppConfigType, DEFAULT_APP_CONFIG
+from internal.entity.conversation_entity import InvokeFrom
+from internal.entity.dataset_entity import RetrievalSource
 from internal.exception import NotFoundException, ForbiddenException, ValidationException, FailException
 from internal.lib.helper import datetime_to_timestamp
 from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset, AppConfig, AppDataset, Conversation
 from internal.schema.app_schema import CreateAppReq, GetPublishHistoriesWithPageReq
+from internal.service.base_service import BaseService
+from internal.service.retrieval_service import RetrievalService
 from pkg.paginator import Paginator
 from pkg.sqlalchemy import SQLAlchemy
-from .base_service import BaseService
 
 
 @inject
@@ -33,6 +46,9 @@ class AppService(BaseService):
 
     db: SQLAlchemy
     builtin_provider_manager: BuiltinProviderManager
+    api_provider_manager: ApiProviderManager
+    retrieval_service: RetrievalService
+    redis_client: Redis
 
     def create_app(self, req: CreateAppReq, account: Account) -> App:
         """创建应用"""
@@ -442,6 +458,104 @@ class AppService(BaseService):
         self.update(app, debug_conversation_id=None)
 
         return app
+
+    def debug_chat(self, app_id: UUID, query: str, account: Account) -> Generator:
+        """应用调试会话"""
+
+        # 获取应用信息，并校验权限
+        app = self.get_app(app_id, account)
+
+        # 获取应用最新草稿配置
+        draft_app_config = self.get_draft_app_config(app_id, account)
+
+        # 获取应用调试会话信息
+        debug_conversation = app.debug_conversation
+
+        # 构建LLM
+        llm = ChatOpenAI(
+            model=draft_app_config["model_config"]["model"],
+            **draft_app_config["model_config"]["parameters"],
+        )
+
+        # 构建短期记忆
+        token_buffer_memory = TokenBufferMemory(
+            db=self.db,
+            conversation=debug_conversation,
+            model_instance=llm,
+        )
+        history = token_buffer_memory.get_history_prompt_messages(
+            message_limit=draft_app_config["dialog_round"],
+        )
+
+        # 构建LangChain工具
+        tools = []
+        for tool in draft_app_config["tools"]:
+            if tool["type"] == "builtin_tool":
+                # 构建内置工具
+                builtin_tool = self.builtin_provider_manager.get_tool(
+                    tool["provider"]["name"],
+                    tool["tool"]["name"],
+                )
+                if not builtin_tool:
+                    continue
+                tools.append(builtin_tool(**tool["tool"]["params"]))
+            else:
+                # 构建自定义API工具
+                api_tool = self.get(ApiTool, tool["tool"]["id"])
+                if not api_tool:
+                    continue
+                tools.append(self.api_provider_manager.get_tool(
+                    ToolEntity(
+                        id=str(api_tool.id),
+                        name=api_tool.name,
+                        url=api_tool.url,
+                        method=api_tool.method,
+                        description=api_tool.description,
+                        headers=api_tool.provider.headers,
+                        parameters=api_tool.parameters,
+                    )
+                ))
+
+        # 构建知识库检索工具
+        if draft_app_config["datasets"]:
+            dataset_retrieval_tool = self.retrieval_service.create_langchain_tool_from_search(
+                flask_app=current_app._get_current_object(),
+                dataset_ids=[dataset["id"] for dataset in draft_app_config["datasets"]],
+                account_id=account.id,
+                retrieval_source=RetrievalSource.APP,
+                **draft_app_config["retrieval_config"],
+            )
+            tools.append(dataset_retrieval_tool)
+
+        # TODO: 构建Agent，暂时使用FunctionCallAgent（待实现多LLM支持后，根据LLM能力选择Agent类型）
+        task_id = uuid.uuid4()
+        agent = FunctionCallAgent(
+            AgentConfig(
+                llm=llm,
+                enable_long_term_memory=draft_app_config["long_term_memory"]["enable"],
+                tools=tools,
+            ),
+            AgentQueueManager(
+                user_id=account.id,
+                task_id=task_id,
+                invoke_from=InvokeFrom.DEBUGGER,
+                redis_client=self.redis_client,
+            )
+        )
+
+        for agent_queue_event in agent.run(query, history, debug_conversation.summary):
+            data = {
+                "id": str(agent_queue_event.id),
+                "task_id": str(agent_queue_event.task_id),
+                "event": agent_queue_event.event,
+                "thought": agent_queue_event.thought,
+                "observation": agent_queue_event.observation,
+                "tool": agent_queue_event.tool,
+                "tool_input": agent_queue_event.tool_input,
+                "answer": agent_queue_event.answer,
+                "latency": agent_queue_event.latency,
+            }
+            yield f"event: {agent_queue_event.event}\ndata: {json.dumps(data)}\n\n"
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验应用草稿配置"""

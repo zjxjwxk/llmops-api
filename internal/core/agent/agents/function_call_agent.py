@@ -123,11 +123,12 @@ class FunctionCallAgent(BaseAgent):
 
         # 检测是否支持/需要绑定工具
         if hasattr(llm, "bind_tools") and callable(getattr(llm, "bind_tools")) and len(self.agent_config.tools) > 0:
-            llm.bind_tools(self.agent_config.tools)
+            llm = llm.bind_tools(self.agent_config.tools)
 
         gathered = None  # 合并Chunk
         is_first_chunk = True  # 是否为第一个Chunk
         generation_type = ""  # 生成类型
+        tool_called = False
 
         # 流式调用LLM
         for chunk in llm.stream(state["messages"]):
@@ -138,11 +139,11 @@ class FunctionCallAgent(BaseAgent):
                 gathered += chunk
 
             # 判断生成类型（工具调用->推理，消息内容->消息）
-            if not generation_type:
-                if chunk.tool_calls:
-                    generation_type = "thought"
-                elif chunk.content:
-                    generation_type = "message"
+            if chunk.tool_calls:
+                generation_type = "thought"
+                tool_called = True
+            elif chunk.content:
+                generation_type = "message"
 
             # 若为消息类型，且消息内容不为空，则为Chunk添加消息事件
             if generation_type == "message" and chunk.content:
@@ -156,17 +157,18 @@ class FunctionCallAgent(BaseAgent):
                     latency=time.perf_counter() - start_at,
                 ))
 
-        # 若为推理类型，则添加推理事件
-        if generation_type == "thought":
+        # 若有工具调用，则添加推理事件
+        if tool_called:
             self.agent_queue_manager.publish(AgentQueueEvent(
                 id=id,
                 task_id=self.agent_queue_manager.task_id,
                 event=QueueEvent.AGENT_THOUGHT,
+                thought=json.dumps(gathered.tool_calls),
                 messages=messages_to_dict(state["messages"]),
                 latency=time.perf_counter() - start_at,
             ))
-        elif generation_type == "message":
-            # 若为消息类型，则表示为最终回答，停止监听
+        else:
+            # 若无工具调用，则表示为最终回答，停止监听
             self.agent_queue_manager.stop_listen()
 
         return {"messages": [gathered]}
