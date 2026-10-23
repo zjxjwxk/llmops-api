@@ -638,7 +638,7 @@ class AppService(BaseService):
                         ApiTool.provider_id == tool["provider_id"],
                         ApiTool.name == tool["tool_id"],
                         ApiTool.account_id == account.id,
-                    )
+                    ).one_or_none()
                     if not api_tool:
                         continue
 
