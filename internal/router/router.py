@@ -55,7 +55,7 @@ class Router:
                                 view_func=self.app_handler.fallback_history_to_draft)
         blue_print.add_url_rule("/apps/<uuid:app_id>/conversations/delete-debug-conversation", methods=["POST"],
                                 view_func=self.app_handler.delete_debug_conversation)
-        blue_print.add_url_rule("/apps/<uuid:app_id>/completions", methods=["POST"],
+        blue_print.add_url_rule("/apps/<uuid:app_id>/conversations", methods=["POST"],
                                 view_func=self.app_handler.debug_chat)
 
         # 内置插件广场模块

@@ -17,10 +17,11 @@ from sqlalchemy import (
     Numeric,
     Float,
     text,
-    PrimaryKeyConstraint,
+    PrimaryKeyConstraint, func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
+from internal.entity.conversation_entity import MessageStatus
 from internal.extension.database_extension import db
 
 
@@ -49,6 +50,17 @@ class Conversation(db.Model):
         server_onupdate=text('CURRENT_TIMESTAMP(0)'),
     )
     created_at = Column(DateTime, nullable=False, server_default=text('CURRENT_TIMESTAMP(0)'))
+
+    @property
+    def is_new(self) -> bool:
+        """只读属性，表示是否为新会话"""
+
+        message_count = db.session.query(func.count(Message.id)).filter(
+            Message.conversation_id == self.id,
+            Message.status == MessageStatus.NORMAL
+        ).scalar()
+
+        return message_count <= 1
 
 
 class Message(db.Model):

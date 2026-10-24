@@ -43,7 +43,7 @@ class AgentQueueEvent(BaseModel):
     tool_input: dict = Field(default_factory=dict)  # 工具输入
 
     # 消息
-    messages: list[dict] = Field(default_factory=dict)  # 推理使用的消息列表
+    message: list[dict] = Field(default_factory=dict)  # 推理使用的消息列表
     message_token_count: int = 0  # 输入消息消耗的Token数
     message_unit_price: float = 0  # 输入Token单价
     message_price_unit: float = 0  # 输出Token价格单位
