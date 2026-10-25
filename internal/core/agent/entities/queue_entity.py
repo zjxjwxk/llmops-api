@@ -16,7 +16,7 @@ class QueueEvent(str, Enum):
     """队列事件枚举"""
 
     LONG_TERM_MEMORY_RECALL = "long_term_memory_recall"  # 长期记忆召回事件
-    AGENT_THOUGHT = "agent_thought"  # 智能体观察事件
+    AGENT_THOUGHT = "agent_thought"  # 智能体推理事件
     AGENT_MESSAGE = "agent_message"  # 智能体消息事件
     AGENT_ACTION = "agent_action"  # 智能体动作事件
     DATASET_RETRIEVAL = "dataset_retrieval"  # 知识库检索事件
@@ -27,8 +27,8 @@ class QueueEvent(str, Enum):
     PING = "ping"  # PING连通事件
 
 
-class AgentQueueEvent(BaseModel):
-    """智能体队列事件模型"""
+class AgentThought(BaseModel):
+    """智能体推理观察模型"""
 
     id: UUID  # 事件ID
     task_id: UUID  # 任务ID
@@ -58,3 +58,10 @@ class AgentQueueEvent(BaseModel):
     total_token_count: int = 0  # 总Token消耗数量
     total_price: float = 0  # Token花费总价
     latency: float = 0  # 步骤推理耗时
+
+
+class AgentResult(BaseModel):
+    """智能体推理观察最终结果"""
+
+    # TODO: 智能体非流式输出响应，待开放API模块完成后实现
+    pass

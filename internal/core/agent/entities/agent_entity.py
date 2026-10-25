@@ -6,11 +6,15 @@
 @Time   :   2026/8/28 21:29
 @File   :   agent_entity.py
 """
-from langchain_core.language_models import BaseLanguageModel
+from uuid import UUID
+
 from langchain_core.messages import AnyMessage
 from langchain_core.tools import BaseTool
 from langgraph.graph import MessagesState
 from pydantic import BaseModel, Field
+
+from internal.entity.app_entity import DEFAULT_APP_CONFIG
+from internal.entity.conversation_entity import InvokeFrom
 
 # Agent系统提示词模版
 AGENT_SYSTEM_PROMPT_TEMPLATE = """你是一个高度定制的智能体应用，旨在为用户提供准确、专业的内容生成和问题解答，请严格遵守以下规则：
@@ -43,8 +47,14 @@ AGENT_SYSTEM_PROMPT_TEMPLATE = """你是一个高度定制的智能体应用，�
 class AgentConfig(BaseModel):
     """Agent配置"""
 
-    # LLM
-    llm: BaseLanguageModel
+    # 用户标识
+    user_id: UUID
+
+    # 调用来源
+    invoke_from: InvokeFrom = InvokeFrom.WEB_APP
+
+    # 最大迭代次数
+    max_iteration_count: int = 5
 
     # Prompt
     system_prompt: str = AGENT_SYSTEM_PROMPT_TEMPLATE  # 系统预设Prompt
@@ -56,12 +66,21 @@ class AgentConfig(BaseModel):
     # Tools
     tools: list[BaseTool] = Field(default_factory=list)
 
+    # 审核配置
+    review_config: dict = Field(default_factory=lambda: DEFAULT_APP_CONFIG["review_config"])
+
 
 class AgentState(MessagesState):
     """Agent状态"""
 
+    task_id: UUID  # 任务ID，每次运行独立
+    iteration_count: int  # 迭代次数，默认为0
     history: list[AnyMessage]  # 短期记忆
     long_term_memory: str  # 长期记忆
 
 
+# 知识库检索工具名称
 DATASET_RETRIEVAL_TOOL_NAME = "dataset_retrieval"
+
+# Agent超过最大迭代次数提示
+MAX_ITERATION_RESPONSE = "当前Agent迭代次数已超过最大限制，请重试"
