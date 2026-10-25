@@ -1,6 +1,6 @@
 # LLMOps
 
-An LLM application development and operation platform based on Flask and LangChain.
+An LLM application development and operation platform based on LangGraph and Flask.
 
 ## How to start
 
