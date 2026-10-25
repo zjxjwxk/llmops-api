@@ -22,7 +22,7 @@ class TestAppHandler:
         ]
     )
     def test_debug(self, app_id, query, client):
-        response = client.post(f"/apps/{app_id}/debug", json={"query": query})
+        response = client.post(f"/apps/{app_id}/conversations", json={"query": query})
         # 测试接口返回成功
         assert response.status_code == 200
 

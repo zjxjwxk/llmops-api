@@ -164,4 +164,4 @@ class AppHandler:
         return compact_generate_response(response)
 
     def ping(self):
-        pass
+        return success_message("pong!")
