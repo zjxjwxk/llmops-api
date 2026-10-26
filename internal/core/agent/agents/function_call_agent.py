@@ -13,13 +13,14 @@ import time
 import uuid
 from typing import Literal
 
+from langchain_core.language_models import BaseLanguageModel
 from langchain_core.messages import HumanMessage, SystemMessage, RemoveMessage, ToolMessage, \
     messages_to_dict, AIMessage
 from langgraph.constants import END
 from langgraph.graph.state import CompiledStateGraph, StateGraph
 
 from internal.core.agent.agents.base_agent import BaseAgent
-from internal.core.agent.entities.agent_entity import AgentState, AGENT_SYSTEM_PROMPT_TEMPLATE, \
+from internal.core.agent.entities.agent_entity import AgentConfig, AgentState, AGENT_SYSTEM_PROMPT_TEMPLATE, \
     DATASET_RETRIEVAL_TOOL_NAME, MAX_ITERATION_RESPONSE
 from internal.core.agent.entities.queue_entity import AgentThought, QueueEvent
 from internal.exception import FailException
@@ -27,6 +28,9 @@ from internal.exception import FailException
 
 class FunctionCallAgent(BaseAgent):
     """基于函数/工具调用的Agent"""
+
+    llm: BaseLanguageModel  # LLM
+    agent_config: AgentConfig  # Agent配置
 
     def _build_agent(self) -> CompiledStateGraph:
 
@@ -153,7 +157,7 @@ class FunctionCallAgent(BaseAgent):
         start_at = time.perf_counter()
 
         # 获取LLM
-        llm = self.agent_config.llm
+        llm = self.llm
 
         # 检测是否支持/需要绑定工具
         if hasattr(llm, "bind_tools") and callable(getattr(llm, "bind_tools")) and len(self.agent_config.tools) > 0:

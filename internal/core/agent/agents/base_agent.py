@@ -9,15 +9,14 @@
 @File   :   base_agent.py
 """
 import uuid
-from abc import abstractmethod, ABC
+from abc import abstractmethod
 from threading import Thread
 from typing import Optional, Any, Iterator
 
 from langchain_core.language_models import BaseLanguageModel
-from langchain_core.load import Serializable
-from langchain_core.runnables import Runnable, RunnableConfig
+from langchain_core.runnables import RunnableConfig, RunnableSerializable
 from langgraph.graph.state import CompiledStateGraph
-from pydantic import PrivateAttr
+from pydantic import ConfigDict, PrivateAttr
 
 from internal.core.agent.agents.agent_queue_manager import AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig, AgentState
@@ -25,7 +24,7 @@ from internal.core.agent.entities.queue_entity import AgentResult, AgentThought
 from internal.exception import FailException
 
 
-class BaseAgent(Serializable, Runnable, ABC):
+class BaseAgent(RunnableSerializable):
     """基于Runnable的Agent基类"""
 
     llm: BaseLanguageModel  # LLM
@@ -33,9 +32,10 @@ class BaseAgent(Serializable, Runnable, ABC):
     _agent: CompiledStateGraph = PrivateAttr(None)  # 编译后的图
     _agent_queue_manager: AgentQueueManager = PrivateAttr(None)  # Agent事件队列管理器
 
-    class Config:
+    model_config = ConfigDict(
         # 允许接受任意类型字段（包括私有变量），且不需要校验器
-        arbitrary_types_allowed = True
+        arbitrary_types_allowed=True,
+    )
 
     def __init__(
             self,
