@@ -7,6 +7,7 @@
 @File   :   __init__.py
 """
 from .account_handler import AccountHandler
+from .ai_handler import AIHandler
 from .api_tool_handler import ApiToolHandler
 from .app_handler import AppHandler
 from .auth_handler import AuthHandler
@@ -20,4 +21,5 @@ from .upload_file_handler import UploadFileHandler
 __all__ = ["AppHandler",
            "BuiltinToolHandler", "ApiToolHandler",
            "UploadFileHandler", "DatasetHandler", "DocumentHandler", "SegmentHandler",
-           "OAuthHandler", "AccountHandler", "AuthHandler"]
+           "OAuthHandler", "AccountHandler", "AuthHandler",
+           "AIHandler"]
