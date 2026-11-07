@@ -14,7 +14,8 @@ from flask_login import login_required, current_user
 from injector import inject
 
 from internal.schema.app_schema import CreateAppReq, GetAppResp, GetPublishHistoriesWithPageReq, \
-    GetPublishHistoriesWithPageResp, FallbackHistoryToDraftReq, UpdateDebugConversationSummaryReq, DebugChatReq
+    GetPublishHistoriesWithPageResp, FallbackHistoryToDraftReq, UpdateDebugConversationSummaryReq, DebugChatReq, \
+    GetDebugConversationMessagesWithPageReq, GetDebugConversationMessagesWithPageResp
 from internal.service import AppService, RetrievalService
 from pkg.paginator import PageModel
 from pkg.response import success_message, validate_error_json, success_json, compact_generate_response
@@ -84,6 +85,22 @@ class AppHandler:
         summary = self.app_service.get_debug_conversation_summary(app_id, current_user)
 
         return success_json({"summary": summary})
+
+    @login_required
+    def get_debug_conversation_messages_with_page(self, app_id: UUID):
+        """获取调试会话消息列表分页"""
+
+        # 提取请求并校验
+        req = GetDebugConversationMessagesWithPageReq(request.args)
+        if not req.validate():
+            return validate_error_json(req.errors)
+
+        # 调用服务获取调试会话消息列表分页
+        messages, paginator = self.app_service.get_debug_conversation_messages_with_page(app_id, req, current_user)
+
+        # 构建分页响应
+        resp = GetDebugConversationMessagesWithPageResp(many=True)
+        return success_json(PageModel(list=resp.dump(messages), paginator=paginator))
 
     @login_required
     def update_draft_app_config(self, app_id: UUID):

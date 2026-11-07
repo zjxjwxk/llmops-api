@@ -35,7 +35,8 @@ from internal.exception import NotFoundException, ForbiddenException, Validation
 from internal.lib.helper import datetime_to_timestamp
 from internal.model import App, Account, AppConfigVersion, ApiTool, Dataset, AppConfig, AppDataset, Conversation, \
     Message, MessageAgentThought
-from internal.schema.app_schema import CreateAppReq, GetPublishHistoriesWithPageReq
+from internal.schema.app_schema import CreateAppReq, GetPublishHistoriesWithPageReq, \
+    GetDebugConversationMessagesWithPageReq
 from internal.service.base_service import BaseService
 from internal.service.conversation_service import ConversationService
 from internal.service.retrieval_service import RetrievalService
@@ -249,7 +250,7 @@ class AppService(BaseService):
     ) -> tuple[list[AppConfigVersion], Paginator]:
         """获取应用发布历史列表分页"""
 
-        # 获取应用信息（校验用户权限）
+        # 获取应用信息（并校验用户权限）
         self.get_app(app_id, account)
 
         # 构建分页器
@@ -268,7 +269,7 @@ class AppService(BaseService):
     def get_debug_conversation_summary(self, app_id: UUID, account: Account) -> str:
         """获取应用调试会话长期记忆"""
 
-        # 获取应用信息，并校验权限
+        # 获取应用信息（并校验用户权限）
         app = self.get_app(app_id, account)
 
         # 获取应用草稿配置，并校验长期记忆是否开启
@@ -277,6 +278,41 @@ class AppService(BaseService):
             raise FailException("该应用尚未开启长期记忆")
 
         return app.debug_conversation.summary
+
+    def get_debug_conversation_messages_with_page(
+            self,
+            app_id: UUID,
+            req: GetDebugConversationMessagesWithPageReq,
+            account: Account
+    ) -> tuple[list[Message], Paginator]:
+        """获取调试会话消息列表分页"""
+
+        # 获取应用信息（并校验用户权限）
+        app = self.get_app(app_id, account)
+
+        # 获取应用调试会话
+        debug_conversation = app.debug_conversation
+
+        # 构建分页器
+        paginator = Paginator(db=self.db, req=req)
+
+        # 构建筛选器
+        filters = []
+        if req.created_at.data:
+            created_at_datetime = datetime.fromtimestamp(req.created_at.data)
+            filters.append(Message.created_at <= created_at_datetime)
+
+        # 执行分页查询
+        messages = paginator.paginate(
+            self.db.session.query(Message).filter(
+                Message.conversation_id == debug_conversation.id,
+                Message.status.in_([MessageStatus.STOP, MessageStatus.NORMAL]),
+                Message.answer != "",
+                *filters,
+            ).order_by(desc("created_at"))
+        )
+
+        return messages, paginator
 
     def update_draft_app_config(
             self,
@@ -287,7 +323,7 @@ class AppService(BaseService):
     ) -> AppConfigVersion:
         """更新应用草稿配置"""
 
-        # 获取应用信息（并校验权限）
+        # 获取应用信息（并校验用户权限）
         app = self.get_app(app_id, account)
 
         # 校验传入应用草稿配置
@@ -308,7 +344,7 @@ class AppService(BaseService):
     def update_debug_conversation_summary(self, app_id: UUID, summary: str, account: Account) -> Conversation:
         """更新应用调试会话长期记忆"""
 
-        # 获取应用信息，并校验权限
+        # 获取应用信息（并校验用户权限）
         app = self.get_app(app_id, account)
 
         # 获取应用草稿配置，并校验长期记忆是否开启
@@ -325,7 +361,7 @@ class AppService(BaseService):
     def publish_draft_app_config(self, app_id: UUID, account: Account) -> App:
         """发布应用配置"""
 
-        # 获取应用信息（并校验权限）
+        # 获取应用信息（并校验用户权限）
         app = self.get_app(app_id, account)
 
         # 获取应用草稿配置
@@ -396,7 +432,7 @@ class AppService(BaseService):
     def cancel_publish_app_config(self, app_id: UUID, account: Account) -> App:
         """取消发布应用配置"""
 
-        # 获取应用信息（并校验权限）
+        # 获取应用信息（并校验用户权限）
         app = self.get_app(app_id, account)
 
         if app.status != AppStatus.PUBLISHED:
@@ -421,7 +457,7 @@ class AppService(BaseService):
     ) -> AppConfigVersion:
         """回退应用历史配置到草稿"""
 
-        # 获取应用信息（并校验权限）
+        # 获取应用信息（并校验用户权限）
         app = self.get_app(app_id, account)
 
         # 获取应用历史版本配置
@@ -452,7 +488,7 @@ class AppService(BaseService):
     def delete_debug_conversation(self, app_id: UUID, account: Account) -> App:
         """删除应用调试会话记录"""
 
-        # 获取应用信息，并校验权限
+        # 获取应用信息（并校验用户权限）
         app = self.get_app(app_id, account)
 
         # 判断调试对话是否存在
@@ -467,7 +503,7 @@ class AppService(BaseService):
     def debug_chat(self, app_id: UUID, query: str, account: Account) -> Generator:
         """应用调试会话"""
 
-        # 获取应用信息，并校验权限
+        # 获取应用信息（并校验用户权限）
         app = self.get_app(app_id, account)
 
         # 获取应用最新草稿配置
@@ -637,7 +673,7 @@ class AppService(BaseService):
     def stop_debug_chat(self, app_id: UUID, task_id: UUID, account: Account) -> None:
         """停止应用调试会话"""
 
-        # 获取应用信息，并校验权限
+        # 获取应用信息（并校验用户权限）
         self.get_app(app_id, account)
 
         # 调用智能体队列管理器，停止会话任务
@@ -665,7 +701,7 @@ class AppService(BaseService):
 
             # 遍历并存储智能体推理记录
             for key, item in agent_thoughts.items():
-                # 仅存储长期记忆召回、推理、消息、动作、知识库检索等类型推理
+                # 仅存储长期记忆召回、推理、消息、动作、知识库检索等类型事件
                 if item["event"] in [
                     QueueEvent.LONG_TERM_MEMORY_RECALL,
                     QueueEvent.AGENT_THOUGHT,
@@ -695,7 +731,7 @@ class AppService(BaseService):
                         latency=item["latency"],
                     )
 
-                # 更新消息/会话记录
+                # 消息事件 => 更新消息/会话记录
                 if item["event"] == QueueEvent.AGENT_MESSAGE:
                     self.update(
                         message,
@@ -724,6 +760,15 @@ class AppService(BaseService):
                             name=new_conversation_name,
                             summary=new_summary,
                         )
+
+                # 停止事件 => 更新消息状态
+                if item["event"] in [QueueEvent.STOP, QueueEvent.ERROR]:
+                    self.update(
+                        message,
+                        status=item["event"],
+                        observation=item["observation"],
+                    )
+                    break
 
     def _validate_draft_app_config(self, draft_app_config: dict[str, Any], account: Account) -> dict[str, Any]:
         """校验应用草稿配置"""

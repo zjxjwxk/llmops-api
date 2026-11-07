@@ -44,6 +44,8 @@ class Router:
                                 view_func=self.app_handler.get_publish_histories_with_page)
         blue_print.add_url_rule("/apps/<uuid:app_id>/summary",
                                 view_func=self.app_handler.get_debug_conversation_summary)
+        blue_print.add_url_rule("/apps/<uuid:app_id>/conversations/messages",
+                                view_func=self.app_handler.get_debug_conversation_messages_with_page)
         blue_print.add_url_rule("/apps/<uuid:app_id>/draft-app-config", methods=["POST"],
                                 view_func=self.app_handler.update_draft_app_config)
         blue_print.add_url_rule("/apps/<uuid:app_id>/summary", methods=["POST"],
