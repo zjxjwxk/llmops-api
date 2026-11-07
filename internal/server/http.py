@@ -56,10 +56,12 @@ class Http(Flask):
         # 5. 解决前后端跨域问题
         CORS(self, resources={
             r"/*": {
-                "origins": "*",
+                "origins": [
+                    "http://localhost:5173",
+                    "http://127.0.0.1:5173",
+                    "http://161.33.140.139:5173"
+                ],
                 "supports_credentials": True,
-                # "methods": ["GET", "POST"],
-                # "allow_headers": ["Content-Type"],
             }
         })
 
