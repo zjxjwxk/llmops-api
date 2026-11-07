@@ -12,7 +12,13 @@ An LLM application development and operation platform based on LangGraph and Fla
     python -m venv venv
     ```
 
-2. Install Python packages with pip
+2. Activate the virtualenv
+
+    ```bash
+    source venv/bin/activate
+    ```
+
+3. Install Python packages with pip
 
     ```bash
     pip install -r requirements.txt
