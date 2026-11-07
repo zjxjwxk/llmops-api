@@ -740,13 +740,19 @@ class AppService(BaseService):
                         latency=latency,
                     )
 
-                    # 更新会话名称/长期记忆
-                    if draft_app_config["long_term_memory"]["enable"]:
+                    # 更新会话名称
+                    if conversation.is_new:
                         # 生成会话名称
-                        new_conversation_name = conversation.name
-                        if conversation.is_new:
-                            new_conversation_name = self.conversation_service.generate_conversation_name(message.query)
+                        new_conversation_name = self.conversation_service.generate_conversation_name(message.query)
 
+                        # 更新会话记录
+                        self.update(
+                            conversation,
+                            name=new_conversation_name,
+                        )
+
+                    # 更新会话长期记忆
+                    if draft_app_config["long_term_memory"]["enable"]:
                         # 生成会话长期记忆
                         new_summary = self.conversation_service.summary(
                             message.query,
@@ -757,7 +763,6 @@ class AppService(BaseService):
                         # 更新会话记录
                         self.update(
                             conversation,
-                            name=new_conversation_name,
                             summary=new_summary,
                         )
 
