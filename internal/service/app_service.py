@@ -21,6 +21,7 @@ from redis import Redis
 from sqlalchemy import func, desc
 
 from internal.core.agent.agents import FunctionCallAgent
+from internal.core.agent.agents.agent_queue_manager import AgentQueueManager
 from internal.core.agent.entities.agent_entity import AgentConfig
 from internal.core.agent.entities.queue_entity import QueueEvent
 from internal.core.memory import TokenBufferMemory
@@ -632,6 +633,15 @@ class AppService(BaseService):
             }
         )
         thread.start()
+
+    def stop_debug_chat(self, app_id: UUID, task_id: UUID, account: Account) -> None:
+        """停止应用调试会话"""
+
+        # 获取应用信息，并校验权限
+        self.get_app(app_id, account)
+
+        # 调用智能体队列管理器，停止会话任务
+        AgentQueueManager.set_stop_flag(task_id, InvokeFrom.DEBUGGER, account.id)
 
     def _save_agent_thoughts(
             self,

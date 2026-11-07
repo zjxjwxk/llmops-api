@@ -149,6 +149,27 @@ class AgentQueueManager:
         return result is not None
 
     @classmethod
+    def set_stop_flag(cls, task_id: UUID, invoke_from: InvokeFrom, user_id: UUID) -> None:
+        """停止调试会话任务"""
+
+        from app.http.module import injector
+        redis_client = injector.get(Redis)
+
+        # 获取运行任务缓存键
+        running_cache_value = redis_client.get(cls.generate_task_running_cache_key(task_id))
+        if not running_cache_value:
+            return
+
+        # 判断该任务是否属于当前用户
+        user_prefix = "account" if invoke_from in [InvokeFrom.WEB_APP, InvokeFrom.DEBUGGER] else "end-user"
+        if running_cache_value.decode("utf-8") != f"{user_prefix}-{str(user_id)}":
+            return
+
+        # 设置任务停止缓存键
+        stopped_cache_key = cls.generate_task_stopped_cache_key(task_id)
+        redis_client.setex(stopped_cache_key, 600, 1)
+
+    @classmethod
     def generate_task_running_cache_key(cls, task_id: UUID) -> str:
         """生成任务已启动缓存键"""
 

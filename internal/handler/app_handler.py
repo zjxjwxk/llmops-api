@@ -163,5 +163,13 @@ class AppHandler:
 
         return compact_generate_response(response)
 
+    @login_required
+    def stop_debug_chat(self, app_id: UUID, task_id: UUID):
+        """停止应用调试会话"""
+
+        self.app_service.stop_debug_chat(app_id, task_id, current_user)
+
+        return success_message("停止应用调试会话成功")
+
     def ping(self):
         return success_message("pong!")
