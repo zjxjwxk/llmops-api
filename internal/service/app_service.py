@@ -770,8 +770,8 @@ class AppService(BaseService):
                 if item["event"] in [QueueEvent.STOP, QueueEvent.ERROR]:
                     self.update(
                         message,
-                        status=item["event"],
-                        observation=item["observation"],
+                        status=MessageStatus.STOP if item["event"] == QueueEvent.STOP else MessageStatus.ERROR,
+                        error=item["observation"],
                     )
                     break
 
