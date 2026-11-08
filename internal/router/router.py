@@ -34,7 +34,7 @@ class Router:
         """注册路由"""
 
         # 创建蓝图
-        blue_print = Blueprint("llmops", __name__, url_prefix="")
+        blue_print = Blueprint("llmops", __name__, url_prefix="/api")
 
         # AI应用模块
         blue_print.add_url_rule("/ping", view_func=self.app_handler.ping)
