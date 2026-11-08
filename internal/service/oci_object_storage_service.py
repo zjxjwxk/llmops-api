@@ -98,11 +98,24 @@ class OciObjectStorageService:
             if target_dir and not os.path.exists(target_dir):
                 os.makedirs(target_dir, exist_ok=True)
 
-            # 从响应流中读取数据并写入目标文件
-            with open(target_file_path, 'wb') as f:
-                for chunk in get_object_response.data.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
+            # 从响应流中读取数据并写入目标文件，增加重试/容错处理
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    with open(target_file_path, 'wb') as f:
+                        for chunk in get_object_response.data.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                    break
+                except (oci._vendor.requests.exceptions.ChunkedEncodingError, urllib3.exceptions.ProtocolError, IOError) as err:
+                    if attempt == max_retries - 1:
+                        raise
+                    # 重新获取对象响应以重试
+                    get_object_response = client.get_object(
+                        namespace_name=bucket_namespace,
+                        bucket_name=bucket_name,
+                        object_name=object_name
+                    )
 
         except oci.exceptions.ServiceError as e:
             if e.status == 404:
