@@ -23,7 +23,7 @@ langchain_weaviate==0.0.8
 langgraph==1.2.20
 langsmith==0.14.17
 marshmallow==3.26.2
-numpy==2.2.6
+numpy==1.26.4
 oci==2.182.0
 openai==3.46.0
 pydantic==2.14.3
